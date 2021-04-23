@@ -188,13 +188,13 @@ export class CryptoIncognito {
 			const utxoSecondReply = await this.getUTXOSecond(coin, addrType, selector);
 			const utxoSecond = await this.decryptReply(utxoSecondReply, utxoSetInfo.dimension, utxoSetInfo.packing);
 			const utxoSecondBuf = Buffer.from(utxoSecond);
-			const addrBuf2 = Buffer.concat([addrBuf.slice(0, UTXO_FIRST_SIZE), utxoSecondBuf.slice(0, 32 - UTXO_FIRST_SIZE)]);
+			const addrBuf2 = Buffer.concat([addrBuf.slice(0, UTXO_FIRST_SIZE), utxoSecondBuf.slice(0, addrBuf.length - UTXO_FIRST_SIZE)]);
 			// Found a different address.
-			if(addrBuf.compare(addrBuf2, 0, addrBuf.length, 0, addrBuf.length) != 0) continue;
+			if(addrBuf.compare(addrBuf2) != 0) continue;
 			ret.push({
-				txid: utxoSecondBuf.slice(32 - UTXO_FIRST_SIZE, 64 - UTXO_FIRST_SIZE).toString('hex'),
-				vout: utxoSecondBuf.readUInt32LE(64 - UTXO_FIRST_SIZE),
-				value: parseInt(utxoSecondBuf.readBigUInt64LE(68 - UTXO_FIRST_SIZE).toString()),
+				txid: utxoSecondBuf.slice(addrBuf.length - UTXO_FIRST_SIZE, 32 + addrBuf.length - UTXO_FIRST_SIZE).toString('hex'),
+				vout: utxoSecondBuf.readUInt32LE(32 + addrBuf.length - UTXO_FIRST_SIZE),
+				value: parseInt(utxoSecondBuf.readBigUInt64LE(4 + 32 + addrBuf.length - UTXO_FIRST_SIZE).toString()),
 			});
 		}
 		return ret;
