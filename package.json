@@ -1,0 +1,42 @@
+{
+  "name": "crypto-incognito",
+  "version": "0.0.3",
+  "description": "Crypto Incognito Node.js / TypeScript client library.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "prepack": "npm run build",
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "src/*",
+    "dist/*"
+  ],
+  "keywords": [
+    "cryptography",
+    "PIR",
+    "private information retrieval",
+    "ElGamal",
+    "EC-ElGamal",
+    "elliptic curve",
+    "Crypto Incognito"
+  ],
+  "author": "Masahiko Hyuga <mail@mhyuga.jp>",
+  "homepage": "https://crypto-incognito.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EllipticPIR/crypto-incognito.git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^14.14.37",
+    "@types/node-fetch": "^2.5.10"
+  },
+  "dependencies": {
+    "bitcoinjs-lib": "^5.2.0",
+    "epir": "^0.0.5",
+    "node-fetch": "^2.6.1"
+  }
+}
