@@ -8,8 +8,6 @@ import epir from 'epir';
 
 const DEBUG = false;
 
-const UTXO_FIRST_SIZE = 4;
-
 type UTXOPart = 'first' | 'second';
 
 export type Response<T> = {
@@ -21,6 +19,7 @@ export type UTXOSetInfo = {
 	height: number;
 	elemCount: number;
 	indexCounts: number[];
+	utxoFirstSize: number;
 	dimension: number;
 	packing: number;
 };
@@ -159,7 +158,7 @@ export class CryptoIncognito {
 				const selector = await this.createSelectorFast(utxoSetInfo.indexCounts, imid);
 				const utxoFirstReply = await this.getUTXOFirst(coin, addrType, selector);
 				const utxoFirst = Buffer.from(await this.decryptReply(utxoFirstReply, utxoSetInfo.dimension, utxoSetInfo.packing));
-				const cmp = addrBuf.compare(utxoFirst, 0, UTXO_FIRST_SIZE, 0, UTXO_FIRST_SIZE);
+				const cmp = addrBuf.compare(utxoFirst, 0, utxoSetInfo.utxoFirstSize, 0, utxoSetInfo.utxoFirstSize);
 				if(cmp < 0) {
 					imax = imid - 1;
 				} else if(cmp > 0) {
@@ -188,13 +187,16 @@ export class CryptoIncognito {
 			const utxoSecondReply = await this.getUTXOSecond(coin, addrType, selector);
 			const utxoSecond = await this.decryptReply(utxoSecondReply, utxoSetInfo.dimension, utxoSetInfo.packing);
 			const utxoSecondBuf = Buffer.from(utxoSecond);
-			const addrBuf2 = Buffer.concat([addrBuf.slice(0, UTXO_FIRST_SIZE), utxoSecondBuf.slice(0, addrBuf.length - UTXO_FIRST_SIZE)]);
+			const addrBuf2 = Buffer.concat([
+				addrBuf.slice(0, utxoSetInfo.utxoFirstSize),
+				utxoSecondBuf.slice(0, addrBuf.length - utxoSetInfo.utxoFirstSize)
+			]);
 			// Found a different address.
 			if(addrBuf.compare(addrBuf2) != 0) continue;
 			ret.push({
-				txid: utxoSecondBuf.slice(addrBuf.length - UTXO_FIRST_SIZE, 32 + addrBuf.length - UTXO_FIRST_SIZE).toString('hex'),
-				vout: utxoSecondBuf.readUInt32LE(32 + addrBuf.length - UTXO_FIRST_SIZE),
-				value: parseInt(utxoSecondBuf.readBigUInt64LE(4 + 32 + addrBuf.length - UTXO_FIRST_SIZE).toString()),
+				txid: utxoSecondBuf.slice(addrBuf.length - utxoSetInfo.utxoFirstSize, 32 + addrBuf.length - utxoSetInfo.utxoFirstSize).toString('hex'),
+				vout: utxoSecondBuf.readUInt32LE(32 + addrBuf.length - utxoSetInfo.utxoFirstSize),
+				value: parseInt(utxoSecondBuf.readBigUInt64LE(4 + 32 + addrBuf.length - utxoSetInfo.utxoFirstSize).toString()),
 			});
 		}
 		return ret;
