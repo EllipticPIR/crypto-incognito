@@ -145,7 +145,7 @@ export class CryptoIncognito {
 			// FIXME: We should conduct a dummy query to ensure that the number of queries sent to the server is constant
 			// FIXME: regardless of the index we are searching.
 			let queriesSent = 0;
-			for(; imin < imax; queriesSent++) {
+			for(; imin <= imax; queriesSent++) {
 				const imid = imin + ((imax - imin) >> 1);
 				const selector = await this.createSelectorFast(utxoSetInfoAddress.indexCounts, imid);
 				const replyEncrypted = await this.getUTXO(coin, addrType, 'address', selector);
