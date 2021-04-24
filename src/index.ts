@@ -205,12 +205,17 @@ export class CryptoIncognito {
 			let imin = 0;
 			let imax = utxoSetInfoAddress.elemCount - 1;
 			const begin = time();
+			// Conduct an interpolation search.
 			// FIXME: The number of queries sent to the server is not constant, and will leak some information about the index.
-			// FIXME: We should conduct a dummy query to ensure that the number of queries sent to the server is constant
-			// FIXME: regardless of the index we are searching.
 			let queriesSent = 0;
+			let left = 0;
+			let right = 0xffffffff;
+			const my = addrBuf.readUInt32BE(0);
 			for(; imin <= imax; queriesSent++) {
-				const imid = imin + ((imax - imin) >> 1);
+				//const imid = imin + ((imax - imin) >> 1);
+				left = Math.min(left, my);
+				right = Math.max(right, my);
+				const imid = Math.round(imin + (imax - imin) * (my - left) / (right - left));
 				const beginSelector = time();
 				const selector = await this.createSelectorFast(utxoSetInfoAddress.indexCounts, imid);
 				const beginQuery = time();
@@ -225,8 +230,10 @@ export class CryptoIncognito {
 				const cmp = addrBuf.compare(reply);
 				if(cmp < 0) {
 					imax = imid - 1;
+					right = reply.readUInt32BE(0);
 				} else if(cmp > 0) {
 					imin = imid + 1;
+					left = reply.readUInt32BE(0);
 				} else {
 					if(this.debug) {
 						console.log(`The position found at ${imid.toLocaleString()} in ${(time() - begin).toLocaleString()}ms by sending ${queriesSent} queries.`);
