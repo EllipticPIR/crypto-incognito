@@ -175,8 +175,8 @@ export class CryptoIncognito {
 		const selector = await this.createSelectorFast(utxoSetInfoRange.indexCounts, loc);
 		const rangeEncrypted = await this.getUTXO(coin, addrType, 'range', selector);
 		const rangeBuf = Buffer.from(await this.decryptReply(rangeEncrypted, utxoSetInfoRange.dimension, utxoSetInfoRange.packing));
-		const rangeBegin = parseInt(rangeBuf.readBigUInt64LE(0).toString());
-		const rangeCount = rangeBuf.readUInt32LE(8);
+		const rangeBegin = rangeBuf.readUInt32LE(0);
+		const rangeCount = rangeBuf.readUInt32LE(4);
 		const ret: UTXOEntry[] = [];
 		for(let i=rangeBegin; i<rangeBegin+rangeCount; i++) {
 			const selector = await this.createSelectorFast(utxoSetInfoFind.indexCounts, i);
