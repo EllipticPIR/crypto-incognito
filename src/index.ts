@@ -41,7 +41,7 @@ export class CryptoIncognito {
 	
 	constructor(
 		apiID: string, apiKey: string,
-		apiEndPoint: string = 'https://api.crypto-incognito/',
+		apiEndPoint: string = 'https://api.crypto-incognito.com/',
 		privKey: Uint8Array = CryptoIncognito.createPrivKey()) {
 		this.apiID = apiID;
 		this.apiKey = apiKey;
