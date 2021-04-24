@@ -191,6 +191,7 @@ export class CryptoIncognito {
 	// Conduct a PIR binary search to find the location of the specified address and retrieves all UTXOs matching the address.
 	async findUTXOs(address: string): Promise<UTXOEntry[]> {
 		const time = () => new Date().getTime();
+		const beginFunc = time();
 		// Decode address.
 		const decodedResult = CryptoIncognito.decodeAddress(address);
 		if(!decodedResult) throw new Error('Failed to determine address type.');
@@ -263,7 +264,11 @@ export class CryptoIncognito {
 				});
 			}));
 		}
-		return await Promise.all(ret);
+		const ret2 = await Promise.all(ret);
+		if(this.debug) {
+			console.log(`Computation done in ${(time() - beginFunc).toLocaleString()}ms.`);
+		}
+		return ret2;
 	}
 	
 }
