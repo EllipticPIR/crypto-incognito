@@ -220,7 +220,7 @@ export class CryptoIncognito {
 					Buffer.from(await this.decryptReply(replyEncrypted, utxoSetInfoAddress.dimension, utxoSetInfoAddress.packing))
 						.slice(0, addrBuf.length);
 				if(this.debug) {
-					console.log(`Selector: ${beginQuery-beginSelector}ms, Query: ${beginDecrypt-beginQuery}ms, Decrypt: ${time()-beginDecrypt}ms.`);
+					console.log(`Position: ${imid.toLocaleString()}, Selector: ${beginQuery-beginSelector}ms, Query: ${beginDecrypt-beginQuery}ms, Decrypt: ${time()-beginDecrypt}ms.`);
 				}
 				const cmp = addrBuf.compare(reply);
 				if(cmp < 0) {
@@ -243,18 +243,20 @@ export class CryptoIncognito {
 		const rangeBuf = Buffer.from(await this.decryptReply(rangeEncrypted, utxoSetInfoRange.dimension, utxoSetInfoRange.packing));
 		const rangeBegin = rangeBuf.readUInt32LE(0);
 		const rangeCount = rangeBuf.readUInt32LE(4);
-		const ret: UTXOEntry[] = [];
+		const ret: Promise<UTXOEntry>[] = [];
 		for(let i=rangeBegin; i<rangeBegin+rangeCount; i++) {
-			const selector = await this.createSelectorFast(utxoSetInfoFind.indexCounts, i);
-			const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
-			const utxoBuf = Buffer.from(await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing));
-			ret.push({
-				txid: utxoBuf.slice(0, 32).toString('hex'),
-				vout: utxoBuf.readUInt32LE(32),
-				value: parseInt(utxoBuf.readBigUInt64LE(36).toString()),
-			});
+			ret.push(new Promise(async (resolve, reject) => {
+				const selector = await this.createSelectorFast(utxoSetInfoFind.indexCounts, i);
+				const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
+				const utxoBuf = Buffer.from(await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing));
+				resolve({
+					txid: utxoBuf.slice(0, 32).toString('hex'),
+					vout: utxoBuf.readUInt32LE(32),
+					value: parseInt(utxoBuf.readBigUInt64LE(36).toString()),
+				});
+			}));
 		}
-		return ret;
+		return await Promise.all(ret);
 	}
 	
 }
