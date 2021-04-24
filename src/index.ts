@@ -212,7 +212,7 @@ export class CryptoIncognito {
 			let left = 0;
 			let right = 0xffffffff;
 			const my = addrBuf.readUInt32BE(0);
-			for(; imin <= imax; queriesSent++) {
+			for(; imin <= imax;) {
 				//const imid = imin + ((imax - imin) >> 1);
 				left = Math.min(left, my);
 				right = Math.max(right, my);
@@ -225,8 +225,9 @@ export class CryptoIncognito {
 				const reply =
 					Buffer.from(await this.decryptReply(replyEncrypted, utxoSetInfoAddress.dimension, utxoSetInfoAddress.packing))
 						.slice(0, addrBuf.length);
+				queriesSent++;
 				if(this.debug) {
-					console.log(`Position: ${imid.toLocaleString()}, Selector: ${beginQuery-beginSelector}ms, Query: ${beginDecrypt-beginQuery}ms, Decrypt: ${time()-beginDecrypt}ms.`);
+					console.log(`Quering at position = ${imid.toLocaleString().padStart(10, ' ')} | Execution time: selector = ${(beginQuery-beginSelector).toLocaleString().padStart(5, ' ')}ms, query = ${(beginDecrypt-beginQuery).toLocaleString().padStart(5, ' ')}ms, decrypt = ${(time()-beginDecrypt).toLocaleString().padStart(5, ' ')}ms.`);
 				}
 				const cmp = addrBuf.compare(reply);
 				if(cmp < 0) {
