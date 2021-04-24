@@ -8,8 +8,6 @@ import epir from 'epir';
 
 const DEBUG = false;
 
-type UTXOPart = 'first' | 'second';
-
 export type Response<T> = {
 	error: string | undefined;
 	data: T;
@@ -19,7 +17,6 @@ export type UTXOSetInfo = {
 	height: number;
 	elemCount: number;
 	indexCounts: number[];
-	utxoFirstSize: number;
 	dimension: number;
 	packing: number;
 };
@@ -103,9 +100,9 @@ export class CryptoIncognito {
 		return (await this.callAPIPublic<{ coins: string[] }>('coins')).coins;
 	}
 	
-	// GET /pub/utxoSetInfo/:coin/:addrType
-	async getUTXOSetInfo(coin: string, addrType: string): Promise<UTXOSetInfo> {
-		const path = `utxoSetInfo/${coin}/${addrType}`;
+	// GET /pub/utxoSetInfo/:coin/:addrType/:searchType
+	async getUTXOSetInfo(coin: string, addrType: string, searchType: string): Promise<UTXOSetInfo> {
+		const path = `utxoSetInfo/${coin}/${addrType}/${searchType}`;
 		return await this.callAPIPublic<UTXOSetInfo>(path);
 	}
 	
@@ -117,21 +114,12 @@ export class CryptoIncognito {
 		return await epir.selector_create_fast(this.privKey, indexCounts, idx);
 	}
 	
-	async getUTXO(part: UTXOPart, coin: string, addrType: string, selector: Uint8Array): Promise<Uint8Array> {
-		const path = `utxo/${part}/${coin}/${addrType}`;
+	// PUT /priv/utxo/:coin/:addrType/:searchType
+	async getUTXO(coin: string, addrType: string, searchType: string, selector: Uint8Array): Promise<Uint8Array> {
+		const path = `utxo/${coin}/${addrType}/${searchType}`;
 		const body = { selector: Buffer.from(selector).toString('base64') };
 		const replyStr = (await this.callAPIPrivate<{ reply: string }>(path, 'PUT', body)).reply;
 		return new Uint8Array(Buffer.from(replyStr, 'base64'));
-	}
-	
-	// PUT /priv/utxo/first/:coin/:addrType
-	async getUTXOFirst(coin: string, addrType: string, selector: Uint8Array): Promise<Uint8Array> {
-		return await this.getUTXO('first', coin, addrType, selector);
-	}
-	
-	// PUT /priv/utxo/second/:coin/:addrType
-	async getUTXOSecond(coin: string, addrType: string, selector: Uint8Array): Promise<Uint8Array> {
-		return await this.getUTXO('second', coin, addrType, selector);
 	}
 	
 	async decryptReply(reply: Uint8Array, dimension: number, packing: number): Promise<Uint8Array> {
@@ -141,62 +129,63 @@ export class CryptoIncognito {
 	// Conduct a PIR binary search to find the location of the specified address and retrieves all UTXOs matching the address.
 	async findUTXOs(coin: string, addrType: string, address: string): Promise<UTXOEntry[]> {
 		const time = () => new Date().getTime();
+		// Decode address.
 		const addrBuf = (['p2pkh', 'p2sh'].indexOf(addrType) >= 0) ?
 			bitcoin.address.fromBase58Check(address).hash :
 			bitcoin.address.fromBech32(address).data;
-		const utxoSetInfo = await this.getUTXOSetInfo(coin, addrType);
-		const findEdge = async (edge: string): Promise<number> => {
+		// Fetch UTXOSetInfo.
+		const utxoSetInfoAddress = await this.getUTXOSetInfo(coin, addrType, 'address');
+		const utxoSetInfoRange = await this.getUTXOSetInfo(coin, addrType, 'range');
+		const utxoSetInfoFind = await this.getUTXOSetInfo(coin, addrType, 'find');
+		const find = async (): Promise<number> => {
 			let imin = 0;
-			let imax = utxoSetInfo.elemCount - 1;
+			let imax = utxoSetInfoAddress.elemCount - 1;
 			const begin = time();
 			// FIXME: The number of queries sent to the server is not constant, and will leak some information about the index.
 			// FIXME: We should conduct a dummy query to ensure that the number of queries sent to the server is constant
 			// FIXME: regardless of the index we are searching.
 			let queriesSent = 0;
 			for(; imin < imax; queriesSent++) {
-				const imid = imin + ((imax - imin) >> 1) + (edge == 'left' ? 0: (imax - imin) % 2);
-				const selector = await this.createSelectorFast(utxoSetInfo.indexCounts, imid);
-				const utxoFirstReply = await this.getUTXOFirst(coin, addrType, selector);
-				const utxoFirst = Buffer.from(await this.decryptReply(utxoFirstReply, utxoSetInfo.dimension, utxoSetInfo.packing));
-				const cmp = addrBuf.compare(utxoFirst, 0, utxoSetInfo.utxoFirstSize, 0, utxoSetInfo.utxoFirstSize);
+				const imid = imin + ((imax - imin) >> 1);
+				const selector = await this.createSelectorFast(utxoSetInfoAddress.indexCounts, imid);
+				const replyEncrypted = await this.getUTXO(coin, addrType, 'address', selector);
+				const reply =
+					Buffer.from(await this.decryptReply(replyEncrypted, utxoSetInfoAddress.dimension, utxoSetInfoAddress.packing))
+						.slice(0, addrBuf.length);
+				const cmp = addrBuf.compare(reply);
 				if(cmp < 0) {
 					imax = imid - 1;
 				} else if(cmp > 0) {
 					imin = imid + 1;
 				} else {
-					if(edge == 'left') {
-						imax = imid;
-					} else {
-						imin = imid;
+					if(DEBUG) {
+						console.log(`The position found at ${imid.toLocaleString()} in ${(time() - begin)}ms by sending ${queriesSent} queries.`);
 					}
+					return imid;
 				}
 			}
-			if(DEBUG) {
-				console.log(`The ${edge} edge found at ${imin.toLocaleString()} in ${(time() - begin)}ms by sending ${queriesSent} queries.`);
-			}
-			return imin;
+			return -1;
 		}
 		const begin = time();
-		const [leftEdge, rightEdge] = await Promise.all([findEdge('left'), findEdge('right')]);
+		const loc = await find();
+		if(loc < 0) return [];
 		if(DEBUG) {
-			console.log(`Find edge done in ${(time() - begin).toLocaleString()}ms.`);
+			console.log(`Find the location done in ${(time() - begin).toLocaleString()}ms.`);
 		}
+		const selector = await this.createSelectorFast(utxoSetInfoRange.indexCounts, loc);
+		const rangeEncrypted = await this.getUTXO(coin, addrType, 'range', selector);
+		const rangeBuf = Buffer.from(await this.decryptReply(rangeEncrypted, utxoSetInfoRange.dimension, utxoSetInfoRange.packing));
+		const rangeBegin = parseInt(rangeBuf.readBigUInt64LE(0).toString());
+		const rangeCount = rangeBuf.readUInt32LE(8);
 		const ret: UTXOEntry[] = [];
-		for(let i=leftEdge; i<=rightEdge; i++) {
-			const selector = await this.createSelectorFast(utxoSetInfo.indexCounts, i);
-			const utxoSecondReply = await this.getUTXOSecond(coin, addrType, selector);
-			const utxoSecond = await this.decryptReply(utxoSecondReply, utxoSetInfo.dimension, utxoSetInfo.packing);
-			const utxoSecondBuf = Buffer.from(utxoSecond);
-			const addrBuf2 = Buffer.concat([
-				addrBuf.slice(0, utxoSetInfo.utxoFirstSize),
-				utxoSecondBuf.slice(0, addrBuf.length - utxoSetInfo.utxoFirstSize)
-			]);
-			// Found a different address.
-			if(addrBuf.compare(addrBuf2) != 0) continue;
+		for(let i=rangeBegin; i<rangeBegin+rangeCount; i++) {
+			const selector = await this.createSelectorFast(utxoSetInfoFind.indexCounts, i);
+			const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
+			const utxoBuf = Buffer.from(await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing));
 			ret.push({
-				txid: utxoSecondBuf.slice(addrBuf.length - utxoSetInfo.utxoFirstSize, 32 + addrBuf.length - utxoSetInfo.utxoFirstSize).toString('hex'),
-				vout: utxoSecondBuf.readUInt32LE(32 + addrBuf.length - utxoSetInfo.utxoFirstSize),
-				value: parseInt(utxoSecondBuf.readBigUInt64LE(4 + 32 + addrBuf.length - utxoSetInfo.utxoFirstSize).toString()),
+				txid: utxoBuf.slice(0, 32).toString('hex'),
+				vout: utxoBuf.readUInt32LE(32),
+				value: parseInt(utxoBuf.readBigUInt64LE(36).toString()),
 			});
 		}
 		return ret;
