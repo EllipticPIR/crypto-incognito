@@ -6,8 +6,6 @@ import * as bitcoin from 'bitcoinjs-lib';
 
 import epir from 'epir';
 
-const DEBUG = false;
-
 export type Response<T> = {
 	error: string | undefined;
 	data: T;
@@ -28,6 +26,8 @@ export type UTXOEntry = {
 };
 
 export class CryptoIncognito {
+	
+	debug: boolean = false;
 	
 	apiID: string;
 	apiKey: string;
@@ -186,31 +186,33 @@ export class CryptoIncognito {
 			let queriesSent = 0;
 			for(; imin <= imax; queriesSent++) {
 				const imid = imin + ((imax - imin) >> 1);
+				const beginSelector = time();
 				const selector = await this.createSelectorFast(utxoSetInfoAddress.indexCounts, imid);
+				const beginQuery = time();
 				const replyEncrypted = await this.getUTXO(coin, addrType, 'address', selector);
+				const beginDecrypt = time();
 				const reply =
 					Buffer.from(await this.decryptReply(replyEncrypted, utxoSetInfoAddress.dimension, utxoSetInfoAddress.packing))
 						.slice(0, addrBuf.length);
+				if(this.debug) {
+					console.log(`Selector: ${beginQuery-beginSelector}ms, Query: ${beginDecrypt-beginQuery}ms, Decrypt: ${time()-beginDecrypt}ms.`);
+				}
 				const cmp = addrBuf.compare(reply);
 				if(cmp < 0) {
 					imax = imid - 1;
 				} else if(cmp > 0) {
 					imin = imid + 1;
 				} else {
-					if(DEBUG) {
-						console.log(`The position found at ${imid.toLocaleString()} in ${(time() - begin)}ms by sending ${queriesSent} queries.`);
+					if(this.debug) {
+						console.log(`The position found at ${imid.toLocaleString()} in ${(time() - begin).toLocaleString()}ms by sending ${queriesSent} queries.`);
 					}
 					return imid;
 				}
 			}
 			return -1;
 		}
-		const begin = time();
 		const loc = await find();
 		if(loc < 0) return [];
-		if(DEBUG) {
-			console.log(`Find the location done in ${(time() - begin).toLocaleString()}ms.`);
-		}
 		const selector = await this.createSelectorFast(utxoSetInfoRange.indexCounts, loc);
 		const rangeEncrypted = await this.getUTXO(coin, addrType, 'range', selector);
 		const rangeBuf = Buffer.from(await this.decryptReply(rangeEncrypted, utxoSetInfoRange.dimension, utxoSetInfoRange.packing));
