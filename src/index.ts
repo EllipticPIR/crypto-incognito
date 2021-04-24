@@ -126,33 +126,57 @@ export class CryptoIncognito {
 		return await epir.reply_decrypt(reply, this.privKey, dimension, packing);
 	}
 	
-	static decodeAddress(address: string): { buf: Buffer, addrType: string } | null {
+	static decodeAddress(address: string): { buf: Buffer, coin: string, addrType: string } | null {
 		try {
 			const base58 = bitcoin.address.fromBase58Check(address);
 			const buf = base58.hash;
-			const addrType = (
-				base58.version == 0x00 || base58.version == 0x6f ? 'p2pkh' :
-					base58.version == 0x05 || base58.version == 0xc4 ? 'p2sh' : null);
-			if(!addrType) return null;
-			return {
-				buf: buf,
-				addrType: addrType,
-			};
+			switch(base58.version) {
+				case 0x00:
+					return {
+						buf: buf,
+						coin: 'btc',
+						addrType: 'p2pkh',
+					};
+				case 0x05:
+					return {
+						buf: buf,
+						coin: 'btc',
+						addrType: 'p2sh',
+					};
+				case 0x6f:
+					return {
+						buf: buf,
+						coin: 'tbtc',
+						addrType: 'p2pkh',
+					};
+				case 0xc4:
+					return {
+						buf: buf,
+						coin: 'tbtc',
+						addrType: 'p2sh',
+					};
+				default:
+					return null;
+			}
 		} catch(e) {
 			try {
 				const bech32 = bitcoin.address.fromBech32(address);
+				const coin = (bech32.prefix == 'bc' ? 'btc' : bech32.prefix == 'tb' ? 'tbtc' : null);
+				if(!coin) return null;
 				const buf = bech32.data;
 				if(bech32.version == 0) {
 					const addrType = (buf.length == 20 ? 'p2wpkh' : buf.length == 32 ? 'p2wsh' : null);
 					if(!addrType) return null;
 					return {
 						buf: buf,
+						coin: coin,
 						addrType: addrType,
 					};
 				} else if(bech32.version == 1) {
 					if(buf.length != 32) return null;
 					return {
 						buf: buf,
+						coin: coin,
 						addrType: 'p2tr',
 					};
 				} else {
@@ -165,12 +189,13 @@ export class CryptoIncognito {
 	}
 	
 	// Conduct a PIR binary search to find the location of the specified address and retrieves all UTXOs matching the address.
-	async findUTXOs(coin: string, address: string): Promise<UTXOEntry[]> {
+	async findUTXOs(address: string): Promise<UTXOEntry[]> {
 		const time = () => new Date().getTime();
 		// Decode address.
 		const decodedResult = CryptoIncognito.decodeAddress(address);
 		if(!decodedResult) throw new Error('Failed to determine address type.');
 		const addrBuf = decodedResult.buf;
+		const coin = decodedResult.coin;
 		const addrType = decodedResult.addrType;
 		// Fetch UTXOSetInfo.
 		const utxoSetInfoAddress = await this.getUTXOSetInfo(coin, addrType, 'address');
