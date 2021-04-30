@@ -29,6 +29,7 @@ export class CryptoIncognito {
 	
 	debug: boolean = false;
 	
+	lastNonce = new Date().getTime();
 	apiID: string;
 	apiKey: string;
 	privKey: Uint8Array;
@@ -54,7 +55,7 @@ export class CryptoIncognito {
 		await epir.load_mG(process.env.HOME + '/.EllipticPIR/mG.bin');
 	}
 	
-	createAuth(body: string, nonce: number = new Date().getTime()): { nonce: number, signature: string } {
+	createAuth(body: string, nonce: number = this.lastNonce + 1): { nonce: number, signature: string } {
 		const hmac = crypto.createHmac('sha3-256', this.apiKey);
 		hmac.update(nonce + ':' + body);
 		const digest = hmac.digest('base64');
@@ -87,6 +88,7 @@ export class CryptoIncognito {
 	async callAPIPrivate<T>(path: string, method: string, body: any): Promise<T> {
 		const bodyStr = JSON.stringify(body);
 		const auth = this.createAuth(bodyStr);
+		this.lastNonce = auth.nonce;
 		const headers = {
 			'X-Nonce': auth.nonce.toString(),
 			'X-API-ID': this.apiID,
