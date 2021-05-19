@@ -1,5 +1,5 @@
 
-import CryptoIncognito from './index';
+import { createCI } from './index';
 
 (async () => {
 	if(process.argv.length < 5) {
@@ -10,9 +10,8 @@ import CryptoIncognito from './index';
 	const apiKey  = process.argv[3];
 	const address = process.argv[4];
 	const endPoint = (process.argv.length > 5 ? process.argv[5] : undefined);
-	const ci = new CryptoIncognito(apiID, apiKey, endPoint);
+	const ci = await createCI(apiID, apiKey, undefined, endPoint);
 	ci.debug = true;
-	await ci.init();
 	const utxos = await ci.findUTXOs(address);
 	console.log(`                                                           TXID  |  vout  |            value`);
 	console.log(`-----------------------------------------------------------------+--------+------------------`);

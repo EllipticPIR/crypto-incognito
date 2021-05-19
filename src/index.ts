@@ -4,7 +4,8 @@ import fetch from 'node-fetch';
 
 import * as bitcoin from 'bitcoinjs-lib';
 
-import epir from 'epir';
+import { createEpir, createDecryptionContext } from 'epir';
+import { EpirBase, DecryptionContextBase } from 'epir/dist/EpirBase';
 
 export type Response<T> = {
 	error: string | undefined;
@@ -29,30 +30,32 @@ export class CryptoIncognito {
 	
 	debug: boolean = false;
 	
+	epir: EpirBase;
+	decCtx: DecryptionContextBase;
+	
 	lastNonce = new Date().getTime();
 	apiID: string;
 	apiKey: string;
-	privKey: Uint8Array;
-	pubKey: Uint8Array;
+	privkey: Uint8Array;
+	pubkey: Uint8Array;
 	apiEndPoint: string;
 	
-	static createPrivKey(): Uint8Array {
-		return epir.create_privkey();
-	}
-	
 	constructor(
+		epir: EpirBase, decCtx: DecryptionContextBase,
 		apiID: string, apiKey: string,
-		apiEndPoint: string = 'https://api.crypto-incognito.com/',
-		privKey: Uint8Array = CryptoIncognito.createPrivKey()) {
+		privkey: Uint8Array,
+		apiEndPoint: string) {
+		this.epir = epir;
+		this.decCtx = decCtx;
 		this.apiID = apiID;
 		this.apiKey = apiKey;
-		this.privKey = privKey;
-		this.pubKey = epir.pubkey_from_privkey(this.privKey);
+		this.privkey = privkey;
+		this.pubkey = this.epir.createPubkey(this.privkey);
 		this.apiEndPoint = apiEndPoint;
 	}
 	
-	async init() {
-		await epir.load_mG(process.env.HOME + '/.EllipticPIR/mG.bin');
+	createPrivKey(): Uint8Array {
+		return this.epir.createPrivkey();
 	}
 	
 	createAuth(body: string, nonce: number = this.lastNonce + 1): { nonce: number, signature: string } {
@@ -109,11 +112,11 @@ export class CryptoIncognito {
 	}
 	
 	async createSelector(indexCounts: number[], idx: number): Promise<Uint8Array> {
-		return await epir.selector_create(this.pubKey, indexCounts, idx);
+		return await this.epir.createSelector(this.pubkey, indexCounts, idx);
 	}
 	
 	async createSelectorFast(indexCounts: number[], idx: number): Promise<Uint8Array> {
-		return await epir.selector_create_fast(this.privKey, indexCounts, idx);
+		return await this.epir.createSelectorFast(this.privkey, indexCounts, idx);
 	}
 	
 	// PUT /priv/utxo/:coin/:addrType/:searchType
@@ -125,7 +128,7 @@ export class CryptoIncognito {
 	}
 	
 	async decryptReply(reply: Uint8Array, dimension: number, packing: number): Promise<Uint8Array> {
-		return await epir.reply_decrypt(reply, this.privKey, dimension, packing);
+		return await this.decCtx.decryptReply(this.privkey, dimension, packing, reply);
 	}
 	
 	static decodeAddress(address: string): { buf: Buffer, coin: string, addrType: string } | null {
@@ -273,5 +276,12 @@ export class CryptoIncognito {
 	
 }
 
-export default CryptoIncognito;
+export const createCI = async (
+	apiID: string, apiKey: string,
+	privkey?: Uint8Array,
+	apiEndPoint: string = 'https://api.crypto-incognito.com/') => {
+	const epir = await createEpir();
+	const decCtx = await createDecryptionContext(process.env.HOME + '/.EllipticPIR/mG.bin');
+	return new CryptoIncognito(epir, decCtx, apiID, apiKey, privkey ? privkey : epir.createPrivkey(), apiEndPoint);
+};
 

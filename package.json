@@ -32,11 +32,12 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^14.14.37",
-    "@types/node-fetch": "^2.5.10"
+    "@types/node-fetch": "^2.5.10",
+    "typescript": "^4.2.4"
   },
   "dependencies": {
     "bitcoinjs-lib": "^5.2.0",
-    "epir": "^0.0.5",
+    "epir": "^0.0.8",
     "node-fetch": "^2.6.1"
   }
 }
