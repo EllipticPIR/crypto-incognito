@@ -49,7 +49,7 @@
   "dependencies": {
     "bech32": "^2.0.0",
     "bs58check": "^2.1.2",
-    "epir": "^0.0.9",
+    "epir": "^0.0.10",
     "hash-wasm": "^4.6.0",
     "node-fetch": "^2.6.1"
   }
