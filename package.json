@@ -37,7 +37,6 @@
     "@types/jest": "^26.0.23",
     "@types/node": "^14.14.37",
     "@types/node-fetch": "^2.5.10",
-    "bech32": "^1.1.4",
     "bootstrap-vue": "^2.21.2",
     "dexie": "^3.0.3",
     "dotenv": "^9.0.2",
@@ -48,7 +47,7 @@
     "workerloader-jest-transformer": "github:visvirial/workerloader-jest-transformer#patch-1"
   },
   "dependencies": {
-    "bitcoinjs-lib": "^5.2.0",
+    "bech32": "^1.1.4",
     "bs58check": "^2.1.2",
     "epir": "^0.0.9",
     "hash-wasm": "^4.6.0",
