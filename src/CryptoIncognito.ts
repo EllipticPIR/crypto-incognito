@@ -1,6 +1,6 @@
 
 import { createHMAC, createSHA3 } from 'hash-wasm';
-import * as bitcoin from 'bitcoinjs-lib';
+import * as bs58check from 'bs58check';
 import * as bech32 from 'bech32';
 
 import { EpirBase, DecryptionContextBase } from 'epir/dist/EpirBase';
@@ -139,30 +139,30 @@ export class CryptoIncognito {
 	
 	static decodeAddress(address: string): { buf: Buffer, coin: string, addrType: string } | null {
 		try {
-			const base58 = bitcoin.address.fromBase58Check(address);
-			const buf = base58.hash;
-			switch(base58.version) {
+			const decoded = bs58check.decode(address);
+			if(decoded.length != 21) return null;
+			switch(decoded[0]) {
 				case 0x00:
 					return {
-						buf: buf,
+						buf: decoded.slice(1),
 						coin: 'btc',
 						addrType: 'p2pkh',
 					};
 				case 0x05:
 					return {
-						buf: buf,
+						buf: decoded.slice(1),
 						coin: 'btc',
 						addrType: 'p2sh',
 					};
 				case 0x6f:
 					return {
-						buf: buf,
+						buf: decoded.slice(1),
 						coin: 'tbtc',
 						addrType: 'p2pkh',
 					};
 				case 0xc4:
 					return {
-						buf: buf,
+						buf: decoded.slice(1),
 						coin: 'tbtc',
 						addrType: 'p2sh',
 					};
