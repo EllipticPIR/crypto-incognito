@@ -14,6 +14,7 @@ module.exports = {
 	transformIgnorePatterns: [],
 	collectCoverageFrom: [
 		'src/**/*.ts',
+		'!src/vanitygen.ts',
 	],
 };
 
