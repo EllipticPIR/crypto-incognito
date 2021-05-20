@@ -31,13 +31,23 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@nuxt/typescript-build": "^2.1.0",
+    "@types/dexie": "^1.3.1",
+    "@types/jest": "^26.0.23",
     "@types/node": "^14.14.37",
     "@types/node-fetch": "^2.5.10",
-    "typescript": "^4.2.4"
+    "bootstrap-vue": "^2.21.2",
+    "dexie": "^3.0.3",
+    "nuxt": "^2.15.6",
+    "ts-jest": "^26.5.6",
+    "typescript": "^4.2.4",
+    "worker-loader": "^3.0.8",
+    "workerloader-jest-transformer": "github:visvirial/workerloader-jest-transformer#patch-1"
   },
   "dependencies": {
     "bitcoinjs-lib": "^5.2.0",
     "epir": "^0.0.8",
+    "hash-wasm": "^4.6.0",
     "node-fetch": "^2.6.1"
   }
 }

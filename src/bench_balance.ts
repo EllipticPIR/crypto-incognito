@@ -11,7 +11,7 @@ import { createCI } from './index';
 	const address = process.argv[4];
 	const endPoint = (process.argv.length > 5 ? process.argv[5] : undefined);
 	const ci = await createCI(apiID, apiKey, undefined, endPoint);
-	ci.debug = true;
+	ci.logger = console.log;
 	const utxos = await ci.findUTXOs(address);
 	console.log(`                                                           TXID  |  vout  |            value`);
 	console.log(`-----------------------------------------------------------------+--------+------------------`);
