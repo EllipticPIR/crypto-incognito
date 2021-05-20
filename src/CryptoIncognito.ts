@@ -1,7 +1,7 @@
 
 import { createHMAC, createSHA3 } from 'hash-wasm';
 import * as bs58check from 'bs58check';
-import * as bech32 from 'bech32';
+import { bech32 } from 'bech32';
 
 import { EpirBase, DecryptionContextBase } from 'epir/dist/EpirBase';
 

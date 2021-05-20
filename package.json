@@ -47,7 +47,7 @@
     "workerloader-jest-transformer": "github:visvirial/workerloader-jest-transformer#patch-1"
   },
   "dependencies": {
-    "bech32": "^1.1.4",
+    "bech32": "^2.0.0",
     "bs58check": "^2.1.2",
     "epir": "^0.0.9",
     "hash-wasm": "^4.6.0",
