@@ -55,11 +55,7 @@ export class CryptoIncognito {
 		this.apiEndPoint = apiEndPoint;
 	}
 	
-	createPrivKey(): Uint8Array {
-		return this.epir.createPrivkey();
-	}
-	
-	async createAuth(body: string, nonce: number = this.lastNonce + 1): Promise<{ nonce: number, signature: string }> {
+	async createAuth(body: string, nonce: number = ++this.lastNonce): Promise<{ nonce: number, signature: string }> {
 		const hmac = await createHMAC(createSHA3(256), this.apiKey);
 		hmac.init();
 		hmac.update(nonce + ':' + body);
@@ -93,7 +89,6 @@ export class CryptoIncognito {
 	async callAPIPrivate<T>(path: string, method: string, body: any): Promise<T> {
 		const bodyStr = JSON.stringify(body);
 		const auth = await this.createAuth(bodyStr);
-		this.lastNonce = auth.nonce;
 		const headers = {
 			'X-Nonce': auth.nonce.toString(),
 			'X-API-ID': this.apiID,
@@ -119,6 +114,14 @@ export class CryptoIncognito {
 	
 	async createSelectorFast(indexCounts: number[], idx: number): Promise<Uint8Array> {
 		return await this.epir.createSelectorFast(this.privkey, indexCounts, idx);
+	}
+	
+	async createSelector_(indexCounts: number[], idx: number, isFast: boolean = true): Promise<Uint8Array> {
+		if(isFast) {
+			return await this.createSelectorFast(indexCounts, idx);
+		} else {
+			return await this.createSelector(indexCounts, idx);
+		}
 	}
 	
 	// PUT /priv/utxo/:coin/:addrType/:searchType
@@ -179,13 +182,16 @@ export class CryptoIncognito {
 						coin: coin,
 						addrType: addrType,
 					};
+				// P2TR address format is not stale, we do not support it.
+				/*
 				} else if(bech32.version == 1) {
-					if(buf.length != 32) return null;
+					if(buf.length < 32) return null;
 					return {
-						buf: buf,
+						buf: buf.slice(0, 32),
 						coin: coin,
 						addrType: 'p2tr',
 					};
+				*/
 				} else {
 					return null;
 				}
@@ -195,7 +201,7 @@ export class CryptoIncognito {
 		}
 	}
 	
-	async findUTXOLocation(coin: string, addrType: string, addrBuf: Buffer): Promise<number> {
+	async findUTXOLocation(coin: string, addrType: string, addrBuf: Buffer, isFast?: boolean): Promise<number> {
 		// Fetch UTXOSetInfo.
 		const utxoSetInfoAddress = await this.getUTXOSetInfo(coin, addrType, 'address');
 		let imin = 0;
@@ -213,7 +219,7 @@ export class CryptoIncognito {
 			right = Math.max(right, my);
 			const imid = Math.round(imin + (imax - imin) * (my - left) / (right - left));
 			const beginSelector = time();
-			const selector = await this.createSelectorFast(utxoSetInfoAddress.indexCounts, imid);
+			const selector = await this.createSelector_(utxoSetInfoAddress.indexCounts, imid, isFast);
 			const beginQuery = time();
 			const replyEncrypted = await this.getUTXO(coin, addrType, 'address', selector);
 			const beginDecrypt = time();
@@ -237,9 +243,9 @@ export class CryptoIncognito {
 		return -1;
 	}
 	
-	async getUTXORangeAt(coin: string, addrType: string, loc: number): Promise<{ begin: number, count: number }> {
+	async getUTXORangeAt(coin: string, addrType: string, loc: number, isFast?: boolean): Promise<{ begin: number, count: number }> {
 		const utxoSetInfoRange = await this.getUTXOSetInfo(coin, addrType, 'range');
-		const selector = await this.createSelectorFast(utxoSetInfoRange.indexCounts, loc);
+		const selector = await this.createSelector_(utxoSetInfoRange.indexCounts, loc, isFast);
 		const encrypted = await this.getUTXO(coin, addrType, 'range', selector);
 		const decrypted = Buffer.from(await this.decryptReply(encrypted, utxoSetInfoRange.dimension, utxoSetInfoRange.packing));
 		const begin = decrypted.readUInt32LE(0);
@@ -258,11 +264,11 @@ export class CryptoIncognito {
 		}
 	}
 	
-	async getUTXOsInRange(coin: string, addrType: string, begin: number, count: number): Promise<UTXOEntry[]> {
+	async getUTXOsInRange(coin: string, addrType: string, begin: number, count: number, isFast?: boolean): Promise<UTXOEntry[]> {
 		const utxoSetInfoFind = await this.getUTXOSetInfo(coin, addrType, 'find');
 		const ret: UTXOEntry[] = [];
 		for(let i=begin; i<begin+count; i++) {
-			const selector = await this.createSelectorFast(utxoSetInfoFind.indexCounts, i);
+			const selector = await this.createSelector_(utxoSetInfoFind.indexCounts, i, isFast);
 			const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
 			const utxoBuf = Buffer.from(await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing));
 			ret.push({
@@ -275,7 +281,7 @@ export class CryptoIncognito {
 	}
 	
 	// Conduct a PIR binary search to find the location of the specified address and retrieves all UTXOs matching the address.
-	async findUTXOs(address: string): Promise<UTXOEntry[]> {
+	async findUTXOs(address: string, isFast?: boolean): Promise<UTXOEntry[]> {
 		const beginFunc = time();
 		// Decode address.
 		const decodedResult = CryptoIncognito.decodeAddress(address);
@@ -284,12 +290,12 @@ export class CryptoIncognito {
 		const coin = decodedResult.coin;
 		const addrType = decodedResult.addrType;
 		// Find the UTXO location.
-		const loc = await this.findUTXOLocation(coin, addrType, addrBuf);
+		const loc = await this.findUTXOLocation(coin, addrType, addrBuf, isFast);
 		if(loc < 0) return [];
 		// Query the range.
-		const { begin, count } = await this.getUTXORangeAt(coin, addrType, loc);
+		const { begin, count } = await this.getUTXORangeAt(coin, addrType, loc, isFast);
 		// Query for UTXOs.
-		const utxos = await this.getUTXOsInRange(coin, addrType, begin, count);
+		const utxos = await this.getUTXOsInRange(coin, addrType, begin, count, isFast);
 		this.logger(`Computation done in ${(time() - beginFunc).toLocaleString()}ms.`);
 		return utxos;
 	}

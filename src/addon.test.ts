@@ -1,7 +1,9 @@
 
-import { createCI } from './index';
 import dotenv from 'dotenv';
 dotenv.config();
+
+import { createCI } from './index';
+import { CryptoIncognito } from './CryptoIncognito';
 
 export const address = 'tb1qcrypt0lnc0gnlt0c0mxxxxxxxxxxxxxxg2x2vr';
 export const expectedUtxos = [
@@ -22,14 +24,30 @@ export const getApiKey = () => {
 };
 
 export const runTests = () => {
-	describe('Addon', () => {
-		test('findUTXOs', async () => {
-			const apiKey = getApiKey();
-			const ci = await createCI(apiKey.id, apiKey.key);
-			const utxos = await ci.findUTXOs(address);
+	
+	let ci: CryptoIncognito;
+	
+	beforeAll(async () => {
+		const apiKey = getApiKey();
+		ci = await createCI(apiKey.id, apiKey.key);
+	});
+	
+	test('getCoins', async () => {
+		const coins = await ci.getCoins();
+		expect(Array.isArray(coins)).toBeTruthy();
+	});
+	
+	describe('findUTXOs', () => {
+		test('normal', async () => {
+			const utxos = await ci.findUTXOs(address, false);
+			expect(utxos).toEqual(expectedUtxos);
+		}, 30 * 1000);
+		test('fast', async () => {
+			const utxos = await ci.findUTXOs(address, true);
 			expect(utxos).toEqual(expectedUtxos);
 		}, 30 * 1000);
 	});
+	
 };
 
 if(require.main === null) {
