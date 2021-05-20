@@ -140,33 +140,17 @@ export class CryptoIncognito {
 	static decodeAddressBase58Check(address: string): { buf: Buffer, coin: string, addrType: string } {
 		const decoded = bs58check.decode(address);
 		if(decoded.length != 21) throw new Error('The address has an invalid base58check payload length.');
-		switch(decoded[0]) {
-			case 0x00:
-				return {
-					buf: decoded.slice(1),
-					coin: 'btc',
-					addrType: 'p2pkh',
-				};
-			case 0x05:
-				return {
-					buf: decoded.slice(1),
-					coin: 'btc',
-					addrType: 'p2sh',
-				};
-			case 0x6f:
-				return {
-					buf: decoded.slice(1),
-					coin: 'tbtc',
-					addrType: 'p2pkh',
-				};
-			case 0xc4:
-				return {
-					buf: decoded.slice(1),
-					coin: 'tbtc',
-					addrType: 'p2sh',
-				};
-			default:
-				throw new Error('The address is not a base58check string.');
+		const coinAndType = ((version: number): { coin: string, addrType: string } => {
+			if(version === 0x00) return { coin:  'btc', addrType: 'p2pkh' };
+			if(version === 0x05) return { coin:  'btc', addrType: 'p2sh' };
+			if(version === 0x6f) return { coin: 'tbtc', addrType: 'p2pkh' };
+			if(version === 0xc4) return { coin: 'tbtc', addrType: 'p2sh' };
+			throw new Error('Unknown Base58Check version.');
+		})(decoded[0]);
+		return {
+			buf: decoded.slice(1),
+			coin: coinAndType.coin,
+			addrType: coinAndType.addrType,
 		}
 	}
 	
@@ -177,21 +161,16 @@ export class CryptoIncognito {
 		const version = decoded.words[0];
 		if(version === 0) {
 			const buf = Buffer.from(bech32.fromWords(decoded.words.slice(1)));
-			if(buf.length == 20) {
-				return {
-					buf: buf,
-					coin: coin,
-					addrType: 'p2wpkh',
-				};
-			}
-			if(buf.length == 32) {
-				return {
-					buf: buf,
-					coin: coin,
-					addrType: 'p2wsh',
-				};
-			}
-			throw new Error('The address has an invalid Bech32 payload length.');
+			const addrType = ((len: number): string => {
+				if(len == 20) return 'p2wpkh';
+				if(len == 32) return 'p2wsh';
+				throw new Error('The address has an invalid Bech32 payload length.');
+			})(buf.length);
+			return {
+				buf: buf,
+				coin: coin,
+				addrType: addrType,
+			};
 		}
 		// P2TR address format is not stale, we do not support it.
 		/*
