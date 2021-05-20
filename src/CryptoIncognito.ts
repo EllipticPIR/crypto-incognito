@@ -137,75 +137,84 @@ export class CryptoIncognito {
 		return await this.decCtx.decryptReply(this.privkey, dimension, packing, reply);
 	}
 	
-	static decodeAddress(address: string): { buf: Buffer, coin: string, addrType: string } | null {
-		try {
-			const decoded = bs58check.decode(address);
-			if(decoded.length != 21) return null;
-			switch(decoded[0]) {
-				case 0x00:
-					return {
-						buf: decoded.slice(1),
-						coin: 'btc',
-						addrType: 'p2pkh',
-					};
-				case 0x05:
-					return {
-						buf: decoded.slice(1),
-						coin: 'btc',
-						addrType: 'p2sh',
-					};
-				case 0x6f:
-					return {
-						buf: decoded.slice(1),
-						coin: 'tbtc',
-						addrType: 'p2pkh',
-					};
-				case 0xc4:
-					return {
-						buf: decoded.slice(1),
-						coin: 'tbtc',
-						addrType: 'p2sh',
-					};
-				default:
-					return null;
+	static decodeAddressBase58Check(address: string): { buf: Buffer, coin: string, addrType: string } {
+		const decoded = bs58check.decode(address);
+		if(decoded.length != 21) throw new Error('The address has an invalid base58check payload length.');
+		switch(decoded[0]) {
+			case 0x00:
+				return {
+					buf: decoded.slice(1),
+					coin: 'btc',
+					addrType: 'p2pkh',
+				};
+			case 0x05:
+				return {
+					buf: decoded.slice(1),
+					coin: 'btc',
+					addrType: 'p2sh',
+				};
+			case 0x6f:
+				return {
+					buf: decoded.slice(1),
+					coin: 'tbtc',
+					addrType: 'p2pkh',
+				};
+			case 0xc4:
+				return {
+					buf: decoded.slice(1),
+					coin: 'tbtc',
+					addrType: 'p2sh',
+				};
+			default:
+				throw new Error('The address is not a base58check string.');
+		}
+	}
+	
+	static decodeAddressBech32(address: string): { buf: Buffer, coin: string, addrType: string } {
+		const decoded = bech32.decode(address);
+		const coin = (decoded.prefix == 'bc' ? 'btc' : decoded.prefix == 'tb' ? 'tbtc' : null);
+		if(!coin) throw new Error('Unknown Bech32 prefix.');
+		const version = decoded.words[0];
+		if(version === 0) {
+			const buf = Buffer.from(bech32.fromWords(decoded.words.slice(1)));
+			if(buf.length == 20) {
+				return {
+					buf: buf,
+					coin: coin,
+					addrType: 'p2wpkh',
+				};
 			}
+			if(buf.length == 32) {
+				return {
+					buf: buf,
+					coin: coin,
+					addrType: 'p2wsh',
+				};
+			}
+			throw new Error('The address has an invalid Bech32 payload length.');
+		}
+		// P2TR address format is not stale, we do not support it.
+		/*
+		if(version == 1) {
+			if(buf.length < 32) return null;
+			return {
+				buf: buf.slice(0, 32),
+				coin: coin,
+				addrType: 'p2tr',
+			};
+		}
+		*/
+		throw new Error('Unknown Bech32 version.');
+	}
+	
+	static decodeAddress(address: string): { buf: Buffer, coin: string, addrType: string } {
+		try {
+			return CryptoIncognito.decodeAddressBase58Check(address);
 		} catch(e) {
 			try {
-				const decoded = bech32.decode(address);
-				const coin = (decoded.prefix == 'bc' ? 'btc' : decoded.prefix == 'tb' ? 'tbtc' : null);
-				if(!coin) return null;
-				if(decoded.words[0] === 0) {
-					const buf = Buffer.from(bech32.fromWords(decoded.words.slice(1)));
-					if(buf.length == 20) {
-						return {
-							buf: buf,
-							coin: coin,
-							addrType: 'p2wpkh',
-						};
-					}
-					if(buf.length == 32) {
-						return {
-							buf: buf,
-							coin: coin,
-							addrType: 'p2wsh',
-						};
-					}
-					return null;
-				// P2TR address format is not stale, we do not support it.
-				/*
-				} else if(bech32.version == 1) {
-					if(buf.length < 32) return null;
-					return {
-						buf: buf.slice(0, 32),
-						coin: coin,
-						addrType: 'p2tr',
-					};
-				*/
-				} else {
-					return null;
-				}
+				return CryptoIncognito.decodeAddressBech32(address);
 			} catch(e) {
-				return null;
+				throw new Error('Failed to decode the input address.');
 			}
 		}
 	}
@@ -294,7 +303,6 @@ export class CryptoIncognito {
 		const beginFunc = time();
 		// Decode address.
 		const decodedResult = CryptoIncognito.decodeAddress(address);
-		if(!decodedResult) throw new Error('Failed to determine address type.');
 		const addrBuf = decodedResult.buf;
 		const coin = decodedResult.coin;
 		const addrType = decodedResult.addrType;
