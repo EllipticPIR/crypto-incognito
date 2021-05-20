@@ -8,7 +8,7 @@
     "prepack": "npm run build",
     "build": "tsc",
     "clean": "rm -rf dist",
-    "test": "jest --maxConcurrency 1 --verbose"
+    "test": "jest --maxConcurrency 1 --coverage --verbose"
   },
   "files": [
     "src/*",
@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "bitcoinjs-lib": "^5.2.0",
-    "epir": "^0.0.8",
+    "epir": "^0.0.9",
     "hash-wasm": "^4.6.0",
     "node-fetch": "^2.6.1"
   }

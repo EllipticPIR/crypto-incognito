@@ -11,6 +11,7 @@ module.exports = {
 		'^.+\\.worker.[t|j]sx?$': 'workerloader-jest-transformer',
 		'^.+\\.(ts|tsx)$': 'ts-jest',
 	},
+	transformIgnorePatterns: [],
 	collectCoverageFrom: [
 		'src/**/*.ts',
 	],

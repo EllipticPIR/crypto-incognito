@@ -86,8 +86,7 @@ import Vue, { PropType } from 'vue'
 import Dexie from 'dexie';
 import { sha256 } from 'hash-wasm';
 
-import { DEFAULT_MMAX } from '../node_modules/epir/src_ts/EpirBase';
-import { EpirBase, DecryptionContextBase } from '../node_modules/epir/src_ts/EpirBase';
+import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from '../node_modules/epir/src_ts/EpirBase';
 import { createEpir, createDecryptionContext } from '../node_modules/epir/src_ts/wasm';
 import { CryptoIncognito, UTXOEntry } from '../src/CryptoIncognito';
 
