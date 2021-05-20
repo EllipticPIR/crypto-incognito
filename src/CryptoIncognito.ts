@@ -1,6 +1,7 @@
 
 import { createHMAC, createSHA3 } from 'hash-wasm';
 import * as bitcoin from 'bitcoinjs-lib';
+import * as bech32 from 'bech32';
 
 import { EpirBase, DecryptionContextBase } from 'epir/dist/EpirBase';
 
@@ -170,18 +171,26 @@ export class CryptoIncognito {
 			}
 		} catch(e) {
 			try {
-				const bech32 = bitcoin.address.fromBech32(address);
-				const coin = (bech32.prefix == 'bc' ? 'btc' : bech32.prefix == 'tb' ? 'tbtc' : null);
+				const decoded = bech32.decode(address);
+				const coin = (decoded.prefix == 'bc' ? 'btc' : decoded.prefix == 'tb' ? 'tbtc' : null);
 				if(!coin) return null;
-				const buf = bech32.data;
-				if(bech32.version == 0) {
-					const addrType = (buf.length == 20 ? 'p2wpkh' : buf.length == 32 ? 'p2wsh' : null);
-					if(!addrType) return null;
-					return {
-						buf: buf,
-						coin: coin,
-						addrType: addrType,
-					};
+				if(decoded.words[0] === 0) {
+					const buf = Buffer.from(bech32.fromWords(decoded.words.slice(1)));
+					if(buf.length == 20) {
+						return {
+							buf: buf,
+							coin: coin,
+							addrType: 'p2wpkh',
+						};
+					}
+					if(buf.length == 32) {
+						return {
+							buf: buf,
+							coin: coin,
+							addrType: 'p2wsh',
+						};
+					}
+					return null;
 				// P2TR address format is not stale, we do not support it.
 				/*
 				} else if(bech32.version == 1) {
