@@ -113,8 +113,10 @@ describe('tBTC', () => {
 
 describe('Invalid', () => {
 	test.concurrent.each([
-		// Unkown Base58Check version.
+		// Unknown Base58Check version.
 		'PKXRrJDoLE4sN7rN27TYWaRwQYYj3jsj8y',
+		// Unknown Base58Check payload size.
+		'5Kd3NBUAdUnhyzenEwVLy9pBKxSwXvE9FMPyR4UKZvpe6E3AgLr',
 		// Invalid Bech32 payload size.
 		'bc1qxxxxxxxxxxxxxxxxk45wpq',
 		// Unknown Bech32 prefix.
