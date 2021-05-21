@@ -111,3 +111,18 @@ describe('tBTC', () => {
 	});
 });
 
+describe('Invalid', () => {
+	test.concurrent.each([
+		// Unkown Base58Check version.
+		'PKXRrJDoLE4sN7rN27TYWaRwQYYj3jsj8y',
+		// Invalid Bech32 payload size.
+		'bc1qxxxxxxxxxxxxxxxxk45wpq',
+		// Unknown Bech32 prefix.
+		'mona1q5w6nxlqsh4pdd3rwlkl894w6ykjg3uzylvcl7jwfkep8pvmas73sj4pasd',
+		// Unknown Bech32 version.
+		'bc1lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxq6htf6q',
+	])('%s', async (address, expected) => {
+		expect(() => { CryptoIncognito.decodeAddress(address) }).toThrow();
+	});
+});
+
