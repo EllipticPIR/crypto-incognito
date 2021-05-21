@@ -286,7 +286,7 @@ export default Vue.extend({
 				return;
 			}
 			try {
-				this.utxoRange = this.utxoRangeFound = await this.ci.getUTXORangeAt(this.coin, this.addrType, this.utxoLocation);
+				this.utxoRange = this.utxoRangeFound = await this.ci.getUTXORangeAt(this.coin, this.addrType, parseInt(this.utxoLocation));
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
@@ -298,7 +298,8 @@ export default Vue.extend({
 				return;
 			}
 			try {
-				this.utxos = await this.ci.getUTXOsInRange(this.coin, this.addrType, this.utxoRange.begin, this.utxoRange.count);
+				this.utxos = await this.ci.getUTXOsInRange(
+					this.coin, this.addrType, parseInt(this.utxoRange.begin), parseInt(this.utxoRange.count));
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
