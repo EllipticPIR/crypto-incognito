@@ -1,5 +1,8 @@
 <template>
 	<b-container>
+		<b-modal id="modal-loading" centered hide-header hide-footer no-close-on-backdrop title="Loading...">
+			<p class="my-4 text-center">Computing your query...<br />(please wait a minute)</p>
+		</b-modal>
 		<h1>Crypto Incognito Client Library (Browser Tests)</h1>
 		
 		<hr />
@@ -167,9 +170,9 @@ export type DataType = {
 	addrType: string;
 	addrBuf: Uint8Array;
 	utxoLocationFound: number;
-	utxoLocation: number;
+	utxoLocation: string;
 	utxoRangeFound: { begin: number, count: number };
-	utxoRange: { begin: number, count: number };
+	utxoRange: { begin: string, count: string };
 	utxoFields: any[];
 	utxos: UTXOEntry[];
 };
@@ -190,9 +193,9 @@ export default Vue.extend({
 			addrType: 'unknown',
 			addrBuf: new Uint8Array(20),
 			utxoLocationFound: -1,
-			utxoLocation: -1,
+			utxoLocation: '',
 			utxoRangeFound: { begin: -1, count: -1 },
-			utxoRange: { begin: -1, count: -1 },
+			utxoRange: { begin: '', count: '' },
 			utxoFields: [
 				{ key: 'txid', label: 'Transaction ID' },
 				{ key: 'vout' },
@@ -273,37 +276,52 @@ export default Vue.extend({
 				alert('Please generate mG first.');
 				return;
 			}
+			this.$bvModal.show('modal-loading');
 			try {
-				this.utxoLocation = this.utxoLocationFound = await this.ci.findUTXOLocation(this.coin, this.addrType, this.addrBuf);
+				this.utxoLocation =
+					(this.utxoLocationFound =
+						await this.ci.findUTXOLocation(this.coin, this.addrType, this.addrBuf)).toString();
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
 			}
+			this.$bvModal.hide('modal-loading');
 		},
 		async getUTXORangeAt() {
 			if(!this.ci) {
 				alert('Please generate mG first.');
 				return;
 			}
+			this.$bvModal.show('modal-loading');
 			try {
-				this.utxoRange = this.utxoRangeFound = await this.ci.getUTXORangeAt(this.coin, this.addrType, parseInt(this.utxoLocation));
+				this.utxoRangeFound = await this.ci.getUTXORangeAt(this.coin, this.addrType, parseInt(this.utxoLocation));
+				this.utxoRange.begin = this.utxoRangeFound.begin.toString();
+				this.utxoRange.count = this.utxoRangeFound.count.toString();
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
 			}
+			this.$bvModal.hide('modal-loading');
 		},
 		async getUTXOsInRange() {
 			if(!this.ci) {
 				alert('Please generate mG first.');
 				return;
 			}
+			this.$bvModal.show('modal-loading');
 			try {
-				this.utxos = await this.ci.getUTXOsInRange(
-					this.coin, this.addrType, parseInt(this.utxoRange.begin), parseInt(this.utxoRange.count));
+				this.utxos = [];
+				const begin = parseInt(this.utxoRange.begin);
+				const count = parseInt(this.utxoRange.count);
+				const utxoSetInfoFind = await this.ci.getUTXOSetInfo(this.coin, this.addrType, 'find');
+				for(let i=begin; i<begin+count; i++) {
+					this.utxos.push(await this.ci.getUTXOAt(utxoSetInfoFind, this.coin, this.addrType, i));
+				}
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
 			}
+			this.$bvModal.hide('modal-loading');
 		},
 	},
 })

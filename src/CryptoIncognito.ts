@@ -268,21 +268,25 @@ export class CryptoIncognito {
 		return { begin, count }
 	}
 	
+	async getUTXOAt(utxoSetInfoFind: UTXOSetInfo, coin: string, addrType: string, idx: number, isFast?: boolean): Promise<UTXOEntry> {
+		const selector = await this.createSelector_(utxoSetInfoFind.indexCounts, idx, isFast);
+		const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
+		const utxoBuf = await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing);
+		const dataView = new DataView(utxoBuf.buffer);
+		return {
+			txid: [...utxoBuf.slice(0, 32)].map((n) => n.toString(16).padStart(2, '0')).join(''),
+			vout: dataView.getUint32(32, true),
+			value: parseInt(dataView.getBigUint64(36, true).toString()),
+		};
+	}
+	
 	async getUTXOsInRange(coin: string, addrType: string, begin: number, count: number, isFast?: boolean): Promise<UTXOEntry[]> {
 		const utxoSetInfoFind = await this.getUTXOSetInfo(coin, addrType, 'find');
-		const ret: UTXOEntry[] = [];
+		const ret: Promise<UTXOEntry>[] = [];
 		for(let i=begin; i<begin+count; i++) {
-			const selector = await this.createSelector_(utxoSetInfoFind.indexCounts, i, isFast);
-			const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
-			const utxoBuf = await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing);
-			const dataView = new DataView(utxoBuf.buffer);
-			ret.push({
-				txid: [...utxoBuf.slice(0, 32)].map((n) => n.toString(16).padStart(2, '0')).join(''),
-				vout: dataView.getUint32(32, true),
-				value: parseInt(dataView.getBigUint64(36, true).toString()),
-			});
+			ret.push(this.getUTXOAt(utxoSetInfoFind, coin, addrType, i, isFast));
 		}
-		return ret;
+		return await Promise.all(ret);
 	}
 	
 	// Conduct a PIR binary search to find the location of the specified address and retrieves all UTXOs matching the address.
