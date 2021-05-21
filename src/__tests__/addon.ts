@@ -41,7 +41,11 @@ export const runTests = () => {
 	
 	beforeAll(async () => {
 		const apiKey = getApiKey();
-		ci = await createCI(apiKey.id, apiKey.key, getNonceGenerator());
+		if(process.env.CI_API_END_POINT) {
+			ci = await createCI(apiKey.id, apiKey.key, getNonceGenerator(), undefined, process.env.CI_API_END_POINT);
+		} else {
+			ci = await createCI(apiKey.id, apiKey.key, getNonceGenerator());
+		}
 	});
 	
 	test('getCoins', async () => {

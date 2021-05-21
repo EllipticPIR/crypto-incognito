@@ -14,7 +14,9 @@ export const runTests = () => {
 			const apiKey = getApiKey();
 			const epir = await createEpir();
 			const decCtx = await createDecryptionContext(process.env.HOME + '/.EllipticPIR/mG.bin');
-			const ci = new CryptoIncognito(epir, decCtx, apiKey.id, apiKey.key, getNonceGenerator());
+			const ci = process.env.CI_API_END_POINT ?
+				new CryptoIncognito(epir, decCtx, apiKey.id, apiKey.key, getNonceGenerator(), undefined, process.env.CI_API_END_POINT) :
+				new CryptoIncognito(epir, decCtx, apiKey.id, apiKey.key, getNonceGenerator());
 			const utxos = await ci.findUTXOs(address);
 			expect(utxos).toEqual(expectedUtxos);
 			if(ci.nonceGenerator instanceof NonceGeneratorRedlock) {
