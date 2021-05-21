@@ -1,6 +1,9 @@
 Crypto Incognito Node.js / TypeScript Official Library
 ======================================================
 
+[![Node.js CI](https://github.com/EllipticPIR/crypto-incognito/actions/workflows/node.js.yml/badge.svg)](https://github.com/EllipticPIR/crypto-incognito/actions/workflows/node.js.yml)
+[![codecov](https://codecov.io/gh/EllipticPIR/crypto-incognito/branch/master/graph/badge.svg?token=RLBPZZ6ZHN)](https://codecov.io/gh/EllipticPIR/crypto-incognito)
+
 *Crypto Incognito* is a web service that serves the Bitcoin's UTXO set database with **full anonymous access**.
 
 Prerequisite
