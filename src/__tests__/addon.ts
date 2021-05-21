@@ -27,8 +27,7 @@ export const getApiKey = () => {
 
 export const getNonceGenerator = () => {
 	if(process.env.REDIS_HOST) {
-		const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379;
-		const redis = new Redis(redisPort, process.env.REDIS_HOST);
+		const redis = new Redis(process.env.REDIS_HOST);
 		return new NonceGeneratorRedlock(redis);
 	} else {
 		return new NonceGeneratorMutex();

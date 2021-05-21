@@ -52,6 +52,7 @@ jobs:
       env:
         CI_API_ID: ${{ secrets.CI_API_ID }}
         CI_API_KEY: ${{ secrets.CI_API_KEY }}
+        REDIS_HOST: ${{ secrets.REDIS_HOST }}
 
     - name: Codecov
       uses: codecov/codecov-action@v1
