@@ -14,19 +14,18 @@
 			<b-button @click="generateMG">Generate mG</b-button>
 		</div>
 		
-		<div class="my-4">
-			<h3>The mG generation progress</h3>
-			<b-progress :max="mmax" height="2rem" animated>
-				<b-progress-bar :value="pointsComputed" style="font-size:150%;">
-					<template v-if="pointsComputed != mmax">
-						Computed {{ pointsComputed.toLocaleString() }} of {{ mmax.toLocaleString() }} points
-					</template>
-					<template v-else>
-						(Completed)
-					</template>
-				</b-progress-bar>
-			</b-progress>
-		</div>
+		<DownArrow />
+		
+		<b-progress :max="mmax" height="2rem" animated>
+			<b-progress-bar :value="pointsComputed" style="font-size:150%;">
+				<template v-if="pointsComputed != mmax">
+					Computed {{ pointsComputed.toLocaleString() }} of {{ mmax.toLocaleString() }} points
+				</template>
+				<template v-else>
+					(Completed)
+				</template>
+			</b-progress-bar>
+		</b-progress>
 		
 		<h2>Step 2. Register your account and get API key</h2>
 		
@@ -42,7 +41,7 @@
 			<b-form-input v-model="apiKey"></b-form-input>
 		</b-form-group>
 		
-		<h2>Step 3. Call APIs to retrieve encrypted UTXO data</h2>
+		<h2>Step 3. Find UTXO location</h2>
 		
 		<b-form-group label="Address">
 			<b-form-input v-model="address"></b-form-input>
@@ -61,12 +60,52 @@
 		</b-form-group>
 		
 		<div class="text-center">
-			<b-button @click="findUTXOs">Fetch UTXO data</b-button>
+			<b-button @click="findUTXOLocation">Find UTXO Location</b-button>
 		</div>
 		
-		<h2>Step 4. Consult fetched data</h2>
+		<DownArrow />
 		
-		<b-table striped hover :items="utxos" :fields="utxoFields"></b-table>
+		<b-form-group label="UTXO location found">
+			<b-form-input :value="utxoLocationFound < 0 ? '(not found)' : utxoLocationFound.toLocaleString()" disabled></b-form-input>
+		</b-form-group>
+		
+		<h2>Step 4. Get UTXO range</h2>
+		
+		<b-form-group label="UTXO location">
+			<b-form-input v-model="utxoLocation"></b-form-input>
+		</b-form-group>
+		
+		<div class="text-center">
+			<b-button @click="getUTXORangeAt">Get UTXO Range</b-button>
+		</div>
+		
+		<DownArrow />
+		
+		<b-form-group label="UTXO range begin found">
+			<b-form-input :value="utxoRangeFound.begin < 0 ? '(not found)' : utxoRangeFound.begin.toLocaleString()" disabled></b-form-input>
+		</b-form-group>
+		
+		<b-form-group label="UTXO count found">
+			<b-form-input :value="utxoRangeFound.count < 0 ? '(not found)' : utxoRangeFound.count.toLocaleString()" disabled></b-form-input>
+		</b-form-group>
+		
+		<h2>Step 5. Fetch UTXOs</h2>
+		
+		<b-form-group label="UTXO range begin">
+			<b-form-input v-model="utxoRange.begin"></b-form-input>
+		</b-form-group>
+		
+		<b-form-group label="UTXO count">
+			<b-form-input v-model="utxoRange.count"></b-form-input>
+		</b-form-group>
+		
+		<div class="text-center">
+			<b-button @click="getUTXOsInRange">Fetch UTXOs</b-button>
+		</div>
+		
+		<DownArrow />
+		
+		<b-table striped hover :items="utxos" :fields="utxoFields" class="my-4"></b-table>
 		
 		<hr />
 		
@@ -80,6 +119,12 @@
 		</footer>
 	</b-container>
 </template>
+
+<style type="text/css">
+	h2 {
+		margin-top: 4rem;
+	}
+</style>
 
 <script lang="ts">
 import Vue, { PropType } from 'vue'
@@ -121,6 +166,10 @@ export type DataType = {
 	coin: string;
 	addrType: string;
 	addrBuf: Uint8Array;
+	utxoLocationFound: number;
+	utxoLocation: number;
+	utxoRangeFound: { begin: number, count: number };
+	utxoRange: { begin: number, count: number };
 	utxoFields: any[];
 	utxos: UTXOEntry[];
 };
@@ -140,6 +189,10 @@ export default Vue.extend({
 			coin: 'unknown',
 			addrType: 'unknown',
 			addrBuf: new Uint8Array(20),
+			utxoLocationFound: -1,
+			utxoLocation: -1,
+			utxoRangeFound: { begin: -1, count: -1 },
+			utxoRange: { begin: -1, count: -1 },
 			utxoFields: [
 				{ key: 'txid', label: 'Transaction ID' },
 				{ key: 'vout' },
@@ -215,13 +268,37 @@ export default Vue.extend({
 				this.addrBuf = decoded.buf;
 			}
 		},
-		async findUTXOs() {
+		async findUTXOLocation() {
 			if(!this.ci) {
 				alert('Please generate mG first.');
 				return;
 			}
 			try {
-				this.utxos = await this.ci.findUTXOs(this.address);
+				this.utxoLocation = this.utxoLocationFound = await this.ci.findUTXOLocation(this.coin, this.addrType, this.addrBuf);
+			} catch(e) {
+				this.log(e.stack);
+				alert(e.toString());
+			}
+		},
+		async getUTXORangeAt() {
+			if(!this.ci) {
+				alert('Please generate mG first.');
+				return;
+			}
+			try {
+				this.utxoRange = this.utxoRangeFound = await this.ci.getUTXORangeAt(this.coin, this.addrType, this.utxoLocation);
+			} catch(e) {
+				this.log(e.stack);
+				alert(e.toString());
+			}
+		},
+		async getUTXOsInRange() {
+			if(!this.ci) {
+				alert('Please generate mG first.');
+				return;
+			}
+			try {
+				this.utxos = await this.ci.getUTXOsInRange(this.coin, this.addrType, this.utxoRange.begin, this.utxoRange.count);
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
