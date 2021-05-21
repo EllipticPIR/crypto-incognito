@@ -9,10 +9,11 @@ on:
   pull_request:
     branches: [ master ]
 
-concurrency: node
-
 jobs:
   build:
+    concurrency:
+      group: node
+      cancel-in-progress: true
 
     runs-on: ubuntu-latest
 
