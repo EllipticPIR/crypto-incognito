@@ -143,7 +143,7 @@ import { sha256 } from 'hash-wasm';
 
 import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from '../node_modules/epir/src_ts/EpirBase';
 import { createEpir, createDecryptionContext } from '../node_modules/epir/src_ts/wasm';
-import { CryptoIncognito, UTXOEntry, decodeAddress } from '../src/CryptoIncognito';
+import { CryptoIncognito, NonceGeneratorMutex, UTXOEntry, decodeAddress } from '../src/CryptoIncognito';
 
 const MMAX = 1 << 24;
 
@@ -242,7 +242,7 @@ export default Vue.extend({
 		async createCI(decCtx: DecryptionContextBase) {
 			this.decCtx = decCtx;
 			this.epir = await createEpir();
-			this.ci = new CryptoIncognito(this.epir, this.decCtx, this.apiID, this.apiKey);
+			this.ci = new CryptoIncognito(this.epir, this.decCtx, this.apiID, this.apiKey, new NonceGeneratorMutex());
 			this.ci.logger = this.log;
 		},
 		async loadMGIfExists() {

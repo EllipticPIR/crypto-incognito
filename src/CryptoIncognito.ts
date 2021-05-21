@@ -160,8 +160,6 @@ export const decodeAddress = (address: string): { buf: Uint8Array, coin: string,
 
 export class CryptoIncognito {
 	
-	static fetch = (typeof fetch !== 'undefined' ? fetch : require('node-fetch'));
-	
 	//logger: (str: string) => void = console.log;
 	logger: (str: string) => void = (str: string) => {};
 	
@@ -194,7 +192,7 @@ export class CryptoIncognito {
 			if(typeof body === 'undefined') throw new Error(`body is required to call this API.`);
 			params.body = body;
 		}
-		const res = await CryptoIncognito.fetch(url, params);
+		const res = await (typeof fetch !== 'undefined' ? fetch : require('node-fetch'))(url, params);
 		if(!res.ok) throw new Error((await res.json() as Response<T>).error);
 		return (await res.json() as Response<T>).data;
 	}
