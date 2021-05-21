@@ -108,7 +108,14 @@
 		
 		<DownArrow />
 		
-		<b-table striped hover :items="utxos" :fields="utxoFields" class="my-4"></b-table>
+		<b-table striped hover :items="utxos" :fields="utxoFields" class="my-4">
+			<template v-slot:custom-foot="data">
+				<b-tr>
+					<b-th colspan="2" class="text-right">#UTXOs = {{ utxos.length }}</b-th>
+					<b-th>{{ (utxos.reduce((acc, utxo) => acc + utxo.value, 0) * 1e-8).toFixed(8) }}</b-th>
+				</b-tr>
+			</template>
+		</b-table>
 		
 		<hr />
 		
