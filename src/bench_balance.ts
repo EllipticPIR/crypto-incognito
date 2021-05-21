@@ -1,15 +1,30 @@
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { createCI } from './index';
 
+Object.defineProperty(global, 'btoa', {
+	value: (str: string) => Buffer.from(str, 'binary').toString('base64'),
+});
+
+Object.defineProperty(global, 'atob', {
+	value: (base64: string) => Buffer.from(base64, 'base64').toString('binary'),
+});
+
 (async () => {
-	if(process.argv.length < 5) {
-		console.log(`Usage: ts-node ./bench_balance.ts API_ID API_KEY ADDRESS [END_POINT]`);
+	if(process.argv.length < 3) {
+		console.log(`Usage: ts-node ./bench_balance.ts ADDRESS [END_POINT]`);
 		return;
 	}
-	const apiID   = process.argv[2];
-	const apiKey  = process.argv[3];
-	const address = process.argv[4];
-	const endPoint = (process.argv.length > 5 ? process.argv[5] : undefined);
+	const apiID = process.env.CI_API_ID;
+	const apiKey = process.env.CI_API_KEY;
+	if(!apiID || !apiKey) {
+		console.log('Please create .env file with CI_API_ID="YOUR_API_ID" and CI_API_KEY="YOUR_API_KEY".');
+		return;
+	}
+	const address = process.argv[2];
+	const endPoint = (process.argv.length > 3 ? process.argv[3] : undefined);
 	const ci = await createCI(apiID, apiKey, undefined, endPoint);
 	ci.logger = console.log;
 	const utxos = await ci.findUTXOs(address);
