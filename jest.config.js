@@ -14,6 +14,7 @@ module.exports = {
 	transformIgnorePatterns: [],
 	collectCoverageFrom: [
 		'src/**/*.ts',
+		'!src/bench_balance.ts',
 		'!src/vanitygen.ts',
 	],
 };
