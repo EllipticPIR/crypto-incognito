@@ -1,11 +1,11 @@
 
-import { CryptoIncognito } from '../CryptoIncognito';
+import { decodeAddress } from '../CryptoIncognito';
 
 export const printBuffer = (buf: Buffer) => {
 	console.log(buf.toString('hex').match(/.{2}/g)!.map((h) => '0x' + h).join(', '));
 };
 
-//printBuffer(CryptoIncognito.decodeAddress('ADDRESS')!.buf);
+//printBuffer(decodeAddress('ADDRESS')!.buf);
 
 describe('BTC', () => {
 	test.concurrent.each([
@@ -55,7 +55,7 @@ describe('BTC', () => {
 		}],
 		*/
 	])('%s', async (address, expected) => {
-		expect(CryptoIncognito.decodeAddress(address)).toEqual(expected);
+		expect(decodeAddress(address)).toEqual(expected);
 	});
 });
 
@@ -107,7 +107,7 @@ describe('tBTC', () => {
 		}],
 		*/
 	])('%s', async (address, expected) => {
-		expect(CryptoIncognito.decodeAddress(address)).toEqual(expected);
+		expect(decodeAddress(address)).toEqual(expected);
 	});
 });
 
@@ -122,7 +122,7 @@ describe('Invalid', () => {
 		// Unknown Bech32 version.
 		'bc1lxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxq6htf6q',
 	])('%s', async (address, expected) => {
-		expect(() => { CryptoIncognito.decodeAddress(address) }).toThrow();
+		expect(() => { decodeAddress(address) }).toThrow();
 	});
 });
 

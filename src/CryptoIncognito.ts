@@ -44,6 +44,67 @@ export const uint8ArrayCompare = (a: Uint8Array, b: Uint8Array, len: number = Ma
 	return 0;
 }
 
+export const decodeAddressBase58Check = (address: string): { buf: Uint8Array, coin: string, addrType: string } => {
+	const decoded = bs58check.decode(address);
+	if(decoded.length != 21) throw new Error('The address has an invalid base58check payload length.');
+	const coinAndType = ((version: number): { coin: string, addrType: string } => {
+		if(version === 0x00) return { coin:  'btc', addrType: 'p2pkh' };
+		if(version === 0x05) return { coin:  'btc', addrType: 'p2sh' };
+		if(version === 0x6f) return { coin: 'tbtc', addrType: 'p2pkh' };
+		if(version === 0xc4) return { coin: 'tbtc', addrType: 'p2sh' };
+		throw new Error('Unknown Base58Check version.');
+	})(decoded[0]);
+	return {
+		buf: new Uint8Array(decoded.slice(1)),
+		coin: coinAndType.coin,
+		addrType: coinAndType.addrType,
+	}
+};
+
+export const decodeAddressBech32 = (address: string): { buf: Uint8Array, coin: string, addrType: string } => {
+	const decoded = bech32.decode(address);
+	const coin = (decoded.prefix == 'bc' ? 'btc' : decoded.prefix == 'tb' ? 'tbtc' : null);
+	if(!coin) throw new Error('Unknown Bech32 prefix.');
+	const version = decoded.words[0];
+	if(version === 0) {
+		const buf = new Uint8Array(bech32.fromWords(decoded.words.slice(1)));
+		const addrType = ((len: number): string => {
+			if(len == 20) return 'p2wpkh';
+			if(len == 32) return 'p2wsh';
+			throw new Error('The address has an invalid Bech32 payload length.');
+		})(buf.length);
+		return {
+			buf: buf,
+			coin: coin,
+			addrType: addrType,
+		};
+	}
+	// P2TR address format is not stale, we do not support it.
+	/*
+	if(version == 1) {
+		if(buf.length < 32) return null;
+		return {
+			buf: buf.slice(0, 32),
+			coin: coin,
+			addrType: 'p2tr',
+		};
+	}
+	*/
+	throw new Error('Unknown Bech32 version.');
+};
+
+export const decodeAddress = (address: string): { buf: Uint8Array, coin: string, addrType: string } => {
+	try {
+		return decodeAddressBase58Check(address);
+	} catch(e) {
+		try {
+			return decodeAddressBech32(address);
+		} catch(e) {
+			throw new Error('Failed to decode the input address.');
+		}
+	}
+};
+
 export class CryptoIncognito {
 	
 	//logger: (str: string) => void = console.log;
@@ -154,67 +215,6 @@ export class CryptoIncognito {
 		return await this.decCtx.decryptReply(this.privkey, dimension, packing, reply);
 	}
 	
-	static decodeAddressBase58Check(address: string): { buf: Uint8Array, coin: string, addrType: string } {
-		const decoded = bs58check.decode(address);
-		if(decoded.length != 21) throw new Error('The address has an invalid base58check payload length.');
-		const coinAndType = ((version: number): { coin: string, addrType: string } => {
-			if(version === 0x00) return { coin:  'btc', addrType: 'p2pkh' };
-			if(version === 0x05) return { coin:  'btc', addrType: 'p2sh' };
-			if(version === 0x6f) return { coin: 'tbtc', addrType: 'p2pkh' };
-			if(version === 0xc4) return { coin: 'tbtc', addrType: 'p2sh' };
-			throw new Error('Unknown Base58Check version.');
-		})(decoded[0]);
-		return {
-			buf: new Uint8Array(decoded.slice(1)),
-			coin: coinAndType.coin,
-			addrType: coinAndType.addrType,
-		}
-	}
-	
-	static decodeAddressBech32(address: string): { buf: Uint8Array, coin: string, addrType: string } {
-		const decoded = bech32.decode(address);
-		const coin = (decoded.prefix == 'bc' ? 'btc' : decoded.prefix == 'tb' ? 'tbtc' : null);
-		if(!coin) throw new Error('Unknown Bech32 prefix.');
-		const version = decoded.words[0];
-		if(version === 0) {
-			const buf = new Uint8Array(bech32.fromWords(decoded.words.slice(1)));
-			const addrType = ((len: number): string => {
-				if(len == 20) return 'p2wpkh';
-				if(len == 32) return 'p2wsh';
-				throw new Error('The address has an invalid Bech32 payload length.');
-			})(buf.length);
-			return {
-				buf: buf,
-				coin: coin,
-				addrType: addrType,
-			};
-		}
-		// P2TR address format is not stale, we do not support it.
-		/*
-		if(version == 1) {
-			if(buf.length < 32) return null;
-			return {
-				buf: buf.slice(0, 32),
-				coin: coin,
-				addrType: 'p2tr',
-			};
-		}
-		*/
-		throw new Error('Unknown Bech32 version.');
-	}
-	
-	static decodeAddress(address: string): { buf: Uint8Array, coin: string, addrType: string } {
-		try {
-			return CryptoIncognito.decodeAddressBase58Check(address);
-		} catch(e) {
-			try {
-				return CryptoIncognito.decodeAddressBech32(address);
-			} catch(e) {
-				throw new Error('Failed to decode the input address.');
-			}
-		}
-	}
-	
 	async findUTXOLocation(coin: string, addrType: string, addrBuf: Uint8Array, isFast?: boolean): Promise<number> {
 		// Fetch UTXOSetInfo.
 		const utxoSetInfoAddress = await this.getUTXOSetInfo(coin, addrType, 'address');
@@ -289,7 +289,7 @@ export class CryptoIncognito {
 	async findUTXOs(address: string, isFast?: boolean): Promise<UTXOEntry[]> {
 		const beginFunc = time();
 		// Decode address.
-		const decodedResult = CryptoIncognito.decodeAddress(address);
+		const decodedResult = decodeAddress(address);
 		const addrBuf = decodedResult.buf;
 		const coin = decodedResult.coin;
 		const addrType = decodedResult.addrType;
