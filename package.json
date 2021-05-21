@@ -8,6 +8,7 @@
     "prepack": "npm run build",
     "build": "tsc",
     "clean": "rm -rf dist",
+    "epir_genm": "LD_LIBRARY_PATH=./node_modules/epir/build_c/epir/lib epir_genm",
     "test": "jest --maxWorkers 1 --coverage --verbose"
   },
   "files": [
