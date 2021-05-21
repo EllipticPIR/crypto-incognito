@@ -2,6 +2,9 @@
 import { createHMAC, createSHA3 } from 'hash-wasm';
 import * as bs58check from 'bs58check';
 import { bech32 } from 'bech32';
+import { Mutex } from 'await-semaphore';
+import Redis from 'ioredis';
+import Redlock from 'redlock';
 
 import { EpirBase, DecryptionContextBase } from 'epir/dist/EpirBase';
 
@@ -26,6 +29,56 @@ export type UTXOEntry = {
 	vout: number;
 	value: number;
 };
+
+export interface NonceGenerator<Lock> {
+	acquire: () => Promise<Lock>;
+	release: (lock: Lock) => Promise<void>;
+	getNonce: () => Promise<number>;
+}
+
+export class NonceGeneratorMutex implements NonceGenerator<() => void> {
+	constructor(public mutex: Mutex = new Mutex(), public currentNonce = new Date().getTime()) {
+	}
+	async acquire() {
+		const release = await this.mutex.acquire();
+		this.currentNonce++;
+		return release;
+	}
+	async release(release: () => void) {
+		release();
+	}
+	async getNonce() {
+		return this.currentNonce;
+	}
+}
+
+export class NonceGeneratorRedlock implements NonceGenerator<Redlock.Lock> {
+	redlock: Redlock;
+	resource: string = 'com.crypto-incognito.nonce-lock';
+	key: string = 'com.crypto-incognito.nonce';
+	ttl: number = 5000;
+	constructor(public redis: Redis.Redis) {
+		this.redlock = new Redlock([redis], { retryCount: 100 });
+	}
+	async acquire() {
+		const lock = await this.redlock.lock(this.resource, this.ttl);
+		const nonce = await this.redis.get(this.key);
+		if(!nonce) {
+			await this.redis.set(this.key, new Date().getTime());
+		} else {
+			await this.redis.set(this.key, parseInt(nonce) + 1);
+		}
+		return lock;
+	}
+	async release(lock: Redlock.Lock) {
+		await lock.unlock();
+	}
+	async getNonce() {
+		const nonce = await this.redis.get(this.key);
+		if(!nonce) throw new Error('Failed to get the nonce.');
+		return parseInt(nonce);
+	}
+}
 
 export const uint8ArrayToBase64 = (buf: Uint8Array): string => {
 	return btoa(String.fromCharCode(...buf));
@@ -107,42 +160,27 @@ export const decodeAddress = (address: string): { buf: Uint8Array, coin: string,
 
 export class CryptoIncognito {
 	
+	static fetch = (typeof fetch !== 'undefined' ? fetch : require('node-fetch'));
+	
 	//logger: (str: string) => void = console.log;
 	logger: (str: string) => void = (str: string) => {};
 	
-	epir: EpirBase;
-	decCtx: DecryptionContextBase;
-	
-	lastNonce = new Date().getTime();
-	apiID: string;
-	apiKey: string;
-	privkey: Uint8Array;
 	pubkey: Uint8Array;
-	apiEndPoint: string;
 	
 	constructor(
-		epir: EpirBase, decCtx: DecryptionContextBase,
-		apiID: string, apiKey: string,
-		privkey: Uint8Array = epir.createPrivkey(),
-		apiEndPoint: string = 'https://api.crypto-incognito.com/') {
-		this.epir = epir;
-		this.decCtx = decCtx;
-		this.apiID = apiID;
-		this.apiKey = apiKey;
-		this.privkey = privkey;
+		public epir: EpirBase, public decCtx: DecryptionContextBase,
+		public apiID: string, public apiKey: string,
+		public nonceGenerator: NonceGenerator<any>,
+		public privkey: Uint8Array = epir.createPrivkey(),
+		public apiEndPoint: string = 'https://api.crypto-incognito.com/') {
 		this.pubkey = this.epir.createPubkey(this.privkey);
-		this.apiEndPoint = apiEndPoint;
 	}
 	
-	async createAuth(body: string, nonce: number = ++this.lastNonce): Promise<{ nonce: number, signature: string }> {
+	async createSignature(body: string, nonce: number): Promise<string> {
 		const hmac = await createHMAC(createSHA3(256), this.apiKey);
 		hmac.init();
 		hmac.update(nonce + ':' + body);
-		const digest = uint8ArrayToBase64(hmac.digest('binary'));
-		return {
-			nonce: nonce,
-			signature: digest,
-		};
+		return uint8ArrayToBase64(hmac.digest('binary'));
 	}
 	
 	async callAPI<T>(path: string, method: string, headers: { [key: string]: string } = {}, body?: string): Promise<T> {
@@ -156,7 +194,7 @@ export class CryptoIncognito {
 			if(typeof body === 'undefined') throw new Error(`body is required to call this API.`);
 			params.body = body;
 		}
-		const res = await (typeof fetch !== 'undefined' ? fetch : require('node-fetch'))(url, params);
+		const res = await CryptoIncognito.fetch(url, params);
 		if(!res.ok) throw new Error((await res.json() as Response<T>).error);
 		return (await res.json() as Response<T>).data;
 	}
@@ -167,13 +205,17 @@ export class CryptoIncognito {
 	
 	async callAPIPrivate<T>(path: string, method: string, body: any): Promise<T> {
 		const bodyStr = JSON.stringify(body);
-		const auth = await this.createAuth(bodyStr);
+		const lock = await this.nonceGenerator.acquire();
+		const nonce = await this.nonceGenerator.getNonce();
+		const signature = await this.createSignature(bodyStr, nonce);
 		const headers = {
-			'X-Nonce': auth.nonce.toString(),
+			'X-Nonce': nonce.toString(),
 			'X-API-ID': this.apiID,
-			'X-Signature': auth.signature,
+			'X-Signature': signature,
 		}
-		return await this.callAPI<T>(`priv/${path}`, method, headers, bodyStr);
+		const ret = await this.callAPI<T>(`priv/${path}`, method, headers, bodyStr);
+		this.nonceGenerator.release(lock);
+		return ret;
 	}
 	
 	// GET /pub/coins

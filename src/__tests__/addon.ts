@@ -1,9 +1,11 @@
 
+import Redis from 'ioredis';
+import Redlock from 'redlock';
 import dotenv from 'dotenv';
 dotenv.config();
 
 import { createCI } from '../index';
-import { CryptoIncognito } from '../CryptoIncognito';
+import { CryptoIncognito, NonceGeneratorMutex, NonceGeneratorRedlock } from '../CryptoIncognito';
 
 export const address = 'tb1qcrypt0lnc0gnlt0c0mxxxxxxxxxxxxxxg2x2vr';
 export const expectedUtxos = [
@@ -23,13 +25,23 @@ export const getApiKey = () => {
 	return { id: apiID, key: apiKey };
 };
 
+export const getNonceGenerator = () => {
+	if(process.env.REDIS_HOST) {
+		const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379;
+		const redis = new Redis(redisPort, process.env.REDIS_HOST);
+		return new NonceGeneratorRedlock(redis);
+	} else {
+		return new NonceGeneratorMutex();
+	}
+};
+
 export const runTests = () => {
 	
 	let ci: CryptoIncognito;
 	
 	beforeAll(async () => {
 		const apiKey = getApiKey();
-		ci = await createCI(apiKey.id, apiKey.key);
+		ci = await createCI(apiKey.id, apiKey.key, getNonceGenerator());
 	});
 	
 	test('getCoins', async () => {
@@ -41,15 +53,21 @@ export const runTests = () => {
 		test('normal', async () => {
 			const utxos = await ci.findUTXOs(address, false);
 			expect(utxos).toEqual(expectedUtxos);
-		}, 30 * 1000);
+		}, 60 * 1000);
 		test('fast', async () => {
 			const utxos = await ci.findUTXOs(address, true);
 			expect(utxos).toEqual(expectedUtxos);
-		}, 30 * 1000);
+		}, 60 * 1000);
 		test('not found', async () => {
 			const utxos = await ci.findUTXOs('tb1qn0tf0undxxxxxxxxxxxxxxxxxxxxxxxxry28wm', true);
 			expect(utxos).toEqual([]);
-		}, 30 * 1000);
+		}, 60 * 1000);
+	});
+	
+	afterAll(async () => {
+		if(ci.nonceGenerator instanceof NonceGeneratorRedlock) {
+			ci.nonceGenerator.redis.disconnect();
+		}
 	});
 	
 };

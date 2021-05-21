@@ -1,7 +1,7 @@
 
 import { createEpir, createDecryptionContext } from 'epir/src_ts/wasm';
-import { CryptoIncognito } from '../CryptoIncognito';
-import { getApiKey, address, expectedUtxos } from './addon';
+import { CryptoIncognito, NonceGeneratorRedlock } from '../CryptoIncognito';
+import { getApiKey, getNonceGenerator, address, expectedUtxos } from './addon';
 
 // For WebAssembly tests, we have tests which uses max CPU cores
 //   (x2 for main threads and worker threads, x2 for Epir and DecryptionContext).
@@ -14,9 +14,12 @@ export const runTests = () => {
 			const apiKey = getApiKey();
 			const epir = await createEpir();
 			const decCtx = await createDecryptionContext(process.env.HOME + '/.EllipticPIR/mG.bin');
-			const ci = new CryptoIncognito(epir, decCtx, apiKey.id, apiKey.key);
+			const ci = new CryptoIncognito(epir, decCtx, apiKey.id, apiKey.key, getNonceGenerator());
 			const utxos = await ci.findUTXOs(address);
 			expect(utxos).toEqual(expectedUtxos);
+			if(ci.nonceGenerator instanceof NonceGeneratorRedlock) {
+				ci.nonceGenerator.redis.disconnect();
+			}
 		}, 60 * 1000);
 	});
 };

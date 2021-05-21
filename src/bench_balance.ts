@@ -25,7 +25,7 @@ Object.defineProperty(global, 'atob', {
 	}
 	const address = process.argv[2];
 	const endPoint = (process.argv.length > 3 ? process.argv[3] : undefined);
-	const ci = await createCI(apiID, apiKey, undefined, endPoint);
+	const ci = await createCI(apiID, apiKey, undefined, undefined, endPoint);
 	ci.logger = console.log;
 	const utxos = await ci.findUTXOs(address);
 	console.log(`                                                           TXID  |  vout  |            value`);
