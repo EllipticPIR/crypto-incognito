@@ -145,7 +145,7 @@ export class CryptoIncognito {
 		};
 	}
 	
-	async callAPI<T>(path: string, method: string, headers: { [key: string]: string } = {}, body: string | null = null): Promise<T> {
+	async callAPI<T>(path: string, method: string, headers: { [key: string]: string } = {}, body?: string): Promise<T> {
 		const url = `${this.apiEndPoint}${path}`;
 		headers['Content-Type'] = 'application/json';
 		let params: any = {
@@ -153,7 +153,7 @@ export class CryptoIncognito {
 			headers: headers,
 		};
 		if(['POST', 'PUT', 'DELETE'].indexOf(method) >= 0) {
-			if(!body) throw new Error(`body is required to call this API.`);
+			if(typeof body === 'undefined') throw new Error(`body is required to call this API.`);
 			params.body = body;
 		}
 		const res = await (typeof fetch !== 'undefined' ? fetch : require('node-fetch'))(url, params);
