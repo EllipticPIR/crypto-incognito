@@ -88,7 +88,7 @@ import { sha256 } from 'hash-wasm';
 
 import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from '../node_modules/epir/src_ts/EpirBase';
 import { createEpir, createDecryptionContext } from '../node_modules/epir/src_ts/wasm';
-import { CryptoIncognito, UTXOEntry } from '../src/CryptoIncognito';
+import { CryptoIncognito, UTXOEntry, decodeAddress } from '../src/CryptoIncognito';
 
 const MMAX = 1 << 24;
 
@@ -120,7 +120,7 @@ export type DataType = {
 	address: string;
 	coin: string;
 	addrType: string;
-	addrBuf: Buffer;
+	addrBuf: Uint8Array;
 	utxoFields: any[];
 	utxos: UTXOEntry[];
 };
@@ -139,7 +139,7 @@ export default Vue.extend({
 			address: '',
 			coin: 'unknown',
 			addrType: 'unknown',
-			addrBuf: Buffer.alloc(20),
+			addrBuf: new Uint8Array(20),
 			utxoFields: [
 				{ key: 'txid', label: 'Transaction ID' },
 				{ key: 'vout' },
@@ -204,11 +204,11 @@ export default Vue.extend({
 			await this.createCI(decCtx);
 		},
 		decodeAddress() {
-			const decoded = CryptoIncognito.decodeAddress(this.address);
+			const decoded = decodeAddress(this.address);
 			if(!decoded) {
 				this.coin = 'unknown';
 				this.addrType = 'unknown';
-				this.addrBuf = Buffer.alloc(20);
+				this.addrBuf = new Uint8Array(20);
 			} else {
 				this.coin = decoded.coin;
 				this.addrType = decoded.addrType;
