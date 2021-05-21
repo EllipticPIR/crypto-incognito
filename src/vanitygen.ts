@@ -10,8 +10,8 @@ import { bech32 } from 'bech32';
 	
 	const prefix = process.argv[2];
 	const str = process.argv[3];
-	const bytes = process.argv.length >= 4 ? parseInt(process.argv[4]) : 20;
-	const version = process.argv.length >= 5 ? parseInt(process.argv[5]) : 0;
+	const bytes = process.argv.length > 4 ? parseInt(process.argv[4]) : 20;
+	const version = process.argv.length > 5 ? parseInt(process.argv[5]) : 0;
 	const map: { [key: string]: string } = {
 		0: '0', 1: 'l', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9',
 		a: 'a', b: 'd', c: 'c', d: 'd', e: 'e', f: 'f', g: 'g', h: 'h', i: 'l', j: 'j',
