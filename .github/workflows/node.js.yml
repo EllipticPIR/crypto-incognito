@@ -49,10 +49,11 @@ jobs:
 
     - run: npm test
       env:
-        CI_API_ID: ${{ secrets.CI_API_ID }}
-        CI_API_KEY: ${{ secrets.CI_API_KEY }}
+        CI_API_ID: ${{ secrets.CI_API_ID_${{ matrix.node-version }} }}
+        CI_API_KEY: ${{ secrets.CI_API_KEY_${{ matrix.node-version }} }}
 
     - name: Codecov
       uses: codecov/codecov-action@v1
       with:
         name: node-${{ matrix.node-version }}
+
