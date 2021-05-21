@@ -1,5 +1,5 @@
 
-import { CryptoIncognito } from './CryptoIncognito';
+import { CryptoIncognito } from '../CryptoIncognito';
 
 export const printBuffer = (buf: Buffer) => {
 	console.log(buf.toString('hex').match(/.{2}/g)!.map((h) => '0x' + h).join(', '));

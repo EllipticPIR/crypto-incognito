@@ -2,8 +2,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { createCI } from './index';
-import { CryptoIncognito } from './CryptoIncognito';
+import { createCI } from '../index';
+import { CryptoIncognito } from '../CryptoIncognito';
 
 export const address = 'tb1qcrypt0lnc0gnlt0c0mxxxxxxxxxxxxxxg2x2vr';
 export const expectedUtxos = [

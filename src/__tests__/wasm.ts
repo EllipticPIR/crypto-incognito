@@ -1,7 +1,7 @@
 
 import { createEpir, createDecryptionContext } from 'epir/src_ts/wasm';
-import { CryptoIncognito } from './CryptoIncognito';
-import { getApiKey, address, expectedUtxos } from './addon.test';
+import { CryptoIncognito } from '../CryptoIncognito';
+import { getApiKey, address, expectedUtxos } from './addon';
 
 // For WebAssembly tests, we have tests which uses max CPU cores
 //   (x2 for main threads and worker threads, x2 for Epir and DecryptionContext).
