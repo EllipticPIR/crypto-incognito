@@ -57,15 +57,15 @@ export const runTests = () => {
 		test('normal', async () => {
 			const utxos = await ci.findUTXOs(address, false);
 			expect(utxos).toEqual(expectedUtxos);
-		}, 60 * 1000);
+		}, 120 * 1000);
 		test('fast', async () => {
 			const utxos = await ci.findUTXOs(address, true);
 			expect(utxos).toEqual(expectedUtxos);
-		}, 60 * 1000);
+		}, 120 * 1000);
 		test('not found', async () => {
 			const utxos = await ci.findUTXOs('tb1qn0tf0undxxxxxxxxxxxxxxxxxxxxxxxxry28wm', true);
 			expect(utxos).toEqual([]);
-		}, 60 * 1000);
+		}, 120 * 1000);
 	});
 	
 	afterAll(async () => {
