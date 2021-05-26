@@ -68,6 +68,8 @@
 			<b-form-input :value="utxoLocationFound < 0 ? '(not found)' : utxoLocationFound.toLocaleString()" disabled></b-form-input>
 		</b-form-group>
 		
+		<p>Computation time: {{ findUTXOLocationTime.toLocaleString() }} ms</p>
+		
 		<h2>Step 4. Get UTXO range</h2>
 		
 		<b-form-group label="UTXO location">
@@ -85,6 +87,8 @@
 		<b-form-group label="UTXO count found">
 			<b-form-input :value="utxoRangeFound.count < 0 ? '(not found)' : utxoRangeFound.count.toLocaleString()" disabled></b-form-input>
 		</b-form-group>
+		
+		<p>Computation time: {{ getUTXORangeAtTime.toLocaleString() }} ms</p>
 		
 		<h2>Step 5. Fetch UTXOs</h2>
 		
@@ -108,6 +112,8 @@
 				</b-tr>
 			</template>
 		</b-table>
+		
+		<p>Computation time: {{ getUTXOsInRangeTime.toLocaleString() }} ms</p>
 		
 		<hr />
 		
@@ -135,6 +141,7 @@ import { sha256 } from 'hash-wasm';
 
 import ClickableButton from 'epir/components/ClickableButton.vue';
 import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from '../node_modules/epir/src_ts/EpirBase';
+import { time } from '../node_modules/epir/src_ts/util';
 import {
 	createEpir, createDecryptionContext,
 	loadDecryptionContextFromIndexedDB, saveDecryptionContextToIndexedDB
@@ -155,9 +162,12 @@ export type DataType = {
 	addrType: string;
 	addrBuf: ArrayBuffer;
 	utxoLocationFound: number;
+	findUTXOLocationTime: number;
 	utxoLocation: string;
 	utxoRangeFound: { begin: number, count: number };
+	getUTXORangeAtTime: number;
 	utxoRange: { begin: string, count: string };
+	getUTXOsInRangeTime: number;
 	utxoFields: any[];
 	utxos: UTXOEntry[];
 };
@@ -181,9 +191,12 @@ export default Vue.extend({
 			addrType: 'unknown',
 			addrBuf: new ArrayBuffer(20),
 			utxoLocationFound: -1,
+			findUTXOLocationTime: -1,
 			utxoLocation: '',
 			utxoRangeFound: { begin: -1, count: -1 },
+			getUTXORangeAtTime: -1,
 			utxoRange: { begin: '', count: '' },
+			getUTXOsInRangeTime: -1,
 			utxoFields: [
 				{ key: 'txid', label: 'Transaction ID' },
 				{ key: 'vout' },
@@ -261,9 +274,11 @@ export default Vue.extend({
 			}
 			this.$bvModal.show('modal-loading');
 			try {
+				const begin = time();
 				this.utxoLocation =
 					(this.utxoLocationFound =
 						await this.ci.findUTXOLocation(this.coin, this.addrType, this.addrBuf)).toString();
+				this.findUTXOLocationTime = time() - begin;
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
@@ -277,9 +292,11 @@ export default Vue.extend({
 			}
 			this.$bvModal.show('modal-loading');
 			try {
+				const begin = time();
 				this.utxoRangeFound = await this.ci.getUTXORangeAt(this.coin, this.addrType, parseInt(this.utxoLocation));
 				this.utxoRange.begin = this.utxoRangeFound.begin.toString();
 				this.utxoRange.count = this.utxoRangeFound.count.toString();
+				this.getUTXORangeAtTime = time() - begin;
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
@@ -293,6 +310,7 @@ export default Vue.extend({
 			}
 			this.$bvModal.show('modal-loading');
 			try {
+				const beginTime = time();
 				this.utxos = [];
 				const begin = parseInt(this.utxoRange.begin);
 				const count = parseInt(this.utxoRange.count);
@@ -300,6 +318,7 @@ export default Vue.extend({
 				for(let i=begin; i<begin+count; i++) {
 					this.utxos.push(await this.ci.getUTXOAt(utxoSetInfoFind, this.coin, this.addrType, i));
 				}
+				this.getUTXOsInRangeTime = time() - beginTime;
 			} catch(e) {
 				this.log(e.stack);
 				alert(e.toString());
