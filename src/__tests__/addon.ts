@@ -25,9 +25,10 @@ export const getApiKey = () => {
 	return { id: apiID, key: apiKey };
 };
 
-export const getNonceGenerator = () => {
+export const getNonceGenerator = async () => {
 	if(process.env.REDIS_HOST) {
 		const redis = new Redis(process.env.REDIS_HOST);
+		await redis.del('com.crypto-incognito.nonce');
 		return new NonceGeneratorRedlock(redis);
 	} else {
 		return new NonceGeneratorMutex();
@@ -41,9 +42,9 @@ export const runTests = () => {
 	beforeAll(async () => {
 		const apiKey = getApiKey();
 		if(process.env.CI_API_END_POINT) {
-			ci = await createCI(apiKey.id, apiKey.key, getNonceGenerator(), undefined, process.env.CI_API_END_POINT);
+			ci = await createCI(apiKey.id, apiKey.key, await getNonceGenerator(), undefined, process.env.CI_API_END_POINT);
 		} else {
-			ci = await createCI(apiKey.id, apiKey.key, getNonceGenerator());
+			ci = await createCI(apiKey.id, apiKey.key, await getNonceGenerator());
 		}
 	});
 	
