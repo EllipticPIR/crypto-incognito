@@ -64,9 +64,9 @@ export class NonceGeneratorRedlock implements NonceGenerator<Redlock.Lock> {
 		const lock = await this.redlock.lock(this.resource, this.ttl);
 		const nonce = await this.redis.get(this.key);
 		if(!nonce) {
-			await this.redis.set(this.key, new Date().getTime());
+			await this.redis.set(this.key, time());
 		} else {
-			await this.redis.set(this.key, parseInt(nonce) + 1);
+			await this.redis.set(this.key, Math.max(time(), parseInt(nonce) + 1));
 		}
 		return lock;
 	}
