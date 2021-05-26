@@ -55,7 +55,10 @@ describe('BTC', () => {
 		}],
 		*/
 	])('%s', async (address, expected) => {
-		expect(decodeAddress(address)).toEqual(expected);
+		const decoded = decodeAddress(address);
+		expect(new Uint8Array(decoded.buf)).toEqual(expected.buf);
+		expect(decoded.coin).toEqual(expected.coin);
+		expect(decoded.addrType).toEqual(expected.addrType);
 	});
 });
 
@@ -107,7 +110,10 @@ describe('tBTC', () => {
 		}],
 		*/
 	])('%s', async (address, expected) => {
-		expect(decodeAddress(address)).toEqual(expected);
+		const decoded = decodeAddress(address);
+		expect(new Uint8Array(decoded.buf)).toEqual(expected.buf);
+		expect(decoded.coin).toEqual(expected.coin);
+		expect(decoded.addrType).toEqual(expected.addrType);
 	});
 });
 

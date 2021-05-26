@@ -142,26 +142,11 @@ import Dexie from 'dexie';
 import { sha256 } from 'hash-wasm';
 
 import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from '../node_modules/epir/src_ts/EpirBase';
-import { createEpir, createDecryptionContext } from '../node_modules/epir/src_ts/wasm';
+import {
+	createEpir, createDecryptionContext,
+	loadDecryptionContextFromIndexedDB, saveDecryptionContextToIndexedDB
+} from '../node_modules/epir/src_ts/wasm';
 import { CryptoIncognito, NonceGeneratorMutex, UTXOEntry, decodeAddress } from '../src/CryptoIncognito';
-
-const MMAX = 1 << 24;
-
-interface MGDatabaseElement {
-	key: number;
-	value: Uint8Array;
-}
-
-class MGDatabase extends Dexie {
-	mG: Dexie.Table<MGDatabaseElement, number>;
-	constructor() {
-		super('mG.bin');
-		this.version(1).stores({
-			mG: 'key',
-		});
-		this.mG = this.table('mG');
-	}
-}
 
 export type DataType = {
 	epir: EpirBase | null;
@@ -175,7 +160,7 @@ export type DataType = {
 	address: string;
 	coin: string;
 	addrType: string;
-	addrBuf: Uint8Array;
+	addrBuf: ArrayBuffer;
 	utxoLocationFound: number;
 	utxoLocation: string;
 	utxoRangeFound: { begin: number, count: number };
@@ -192,13 +177,13 @@ export default Vue.extend({
 			ci: null,
 			console: [],
 			pointsComputed: 0,
-			mmax: MMAX,
+			mmax: DEFAULT_MMAX,
 			apiID: '',
 			apiKey: '',
 			address: '',
 			coin: 'unknown',
 			addrType: 'unknown',
-			addrBuf: new Uint8Array(20),
+			addrBuf: new ArrayBuffer(20),
 			utxoLocationFound: -1,
 			utxoLocation: '',
 			utxoRangeFound: { begin: -1, count: -1 },
@@ -246,24 +231,19 @@ export default Vue.extend({
 			this.ci.logger = this.log;
 		},
 		async loadMGIfExists() {
-			const db = new MGDatabase();
-			const mGDB = await db.mG.get(0);
-			if(!mGDB) return;
-			const mCount = mGDB.value.length / 36;
-			if(mCount != MMAX) return;
-			const decCtx = await createDecryptionContext(mGDB.value);
-			this.pointsComputed = mCount;
+			const decCtx = await loadDecryptionContextFromIndexedDB();
+			if(!decCtx) return;
+			this.pointsComputed = DEFAULT_MMAX;
 			await this.createCI(decCtx);
 		},
 		async generateMG() {
 			this.log('Generating mG..');
 			const decCtx = await createDecryptionContext({ cb: (pointsComputed: number) => {
 				this.pointsComputed = pointsComputed;
-				const progress = 100 * pointsComputed / MMAX;
-				this.log(`Generated ${pointsComputed.toLocaleString()} of ${MMAX.toLocaleString()} points (${progress.toFixed(2)}%)..`);
-			}, interval: 10 * 1000 }, MMAX);
-			const db = new MGDatabase();
-			await db.mG.put({ key: 0, value: decCtx.getMG() });
+				const progress = 100 * pointsComputed / DEFAULT_MMAX;
+				this.log(`Generated ${pointsComputed.toLocaleString()} of ${DEFAULT_MMAX.toLocaleString()} points (${progress.toFixed(2)}%)..`);
+			}, interval: 10 * 1000 }, DEFAULT_MMAX);
+			saveDecryptionContextToIndexedDB(decCtx);
 			await this.createCI(decCtx);
 		},
 		decodeAddress() {
@@ -271,7 +251,7 @@ export default Vue.extend({
 			if(!decoded) {
 				this.coin = 'unknown';
 				this.addrType = 'unknown';
-				this.addrBuf = new Uint8Array(20);
+				this.addrBuf = new ArrayBuffer(20);
 			} else {
 				this.coin = decoded.coin;
 				this.addrType = decoded.addrType;

@@ -7,9 +7,7 @@ import Redis from 'ioredis';
 import Redlock from 'redlock';
 
 import { EpirBase, DecryptionContextBase } from 'epir/dist/EpirBase';
-
-
-const time = () => new Date().getTime();
+import { time, arrayBufferCompare } from 'epir/dist/util';
 
 export type Response<T> = {
 	error: string | undefined;
@@ -80,24 +78,15 @@ export class NonceGeneratorRedlock implements NonceGenerator<Redlock.Lock> {
 	}
 }
 
-export const uint8ArrayToBase64 = (buf: Uint8Array): string => {
-	return btoa(String.fromCharCode(...buf));
+export const arrayBufferToBase64 = (buf: ArrayBuffer): string => {
+	return btoa(String.fromCharCode(...new Uint8Array(buf)));
 };
 
-export const base64ToUint8Array = (base64: string): Uint8Array => {
-	return new Uint8Array(atob(base64).split('').map((c) => c.charCodeAt(0)));
+export const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
+	return new Uint8Array(atob(base64).split('').map((c) => c.charCodeAt(0))).buffer;
 };
 
-// FIXME: this code was copied from `epir`.
-export const uint8ArrayCompare = (a: Uint8Array, b: Uint8Array, len: number = Math.min(a.length, b.length)): number => {
-	for(let i=0; i<len; i++) {
-		if(a[i] == b[i]) continue;
-		return a[i] - b[i];
-	}
-	return 0;
-}
-
-export const decodeAddressBase58Check = (address: string): { buf: Uint8Array, coin: string, addrType: string } => {
+export const decodeAddressBase58Check = (address: string): { buf: ArrayBuffer, coin: string, addrType: string } => {
 	const decoded = bs58check.decode(address);
 	if(decoded.length != 21) throw new Error('The address has an invalid base58check payload length.');
 	const coinAndType = ((version: number): { coin: string, addrType: string } => {
@@ -108,13 +97,13 @@ export const decodeAddressBase58Check = (address: string): { buf: Uint8Array, co
 		throw new Error('Unknown Base58Check version.');
 	})(decoded[0]);
 	return {
-		buf: new Uint8Array(decoded.slice(1)),
+		buf: new Uint8Array(decoded.slice(1)).buffer,
 		coin: coinAndType.coin,
 		addrType: coinAndType.addrType,
 	}
 };
 
-export const decodeAddressBech32 = (address: string): { buf: Uint8Array, coin: string, addrType: string } => {
+export const decodeAddressBech32 = (address: string): { buf: ArrayBuffer, coin: string, addrType: string } => {
 	const decoded = bech32.decode(address);
 	const coin = (decoded.prefix == 'bc' ? 'btc' : decoded.prefix == 'tb' ? 'tbtc' : null);
 	if(!coin) throw new Error('Unknown Bech32 prefix.');
@@ -127,7 +116,7 @@ export const decodeAddressBech32 = (address: string): { buf: Uint8Array, coin: s
 			throw new Error('The address has an invalid Bech32 payload length.');
 		})(buf.length);
 		return {
-			buf: buf,
+			buf: buf.buffer,
 			coin: coin,
 			addrType: addrType,
 		};
@@ -146,7 +135,7 @@ export const decodeAddressBech32 = (address: string): { buf: Uint8Array, coin: s
 	throw new Error('Unknown Bech32 version.');
 };
 
-export const decodeAddress = (address: string): { buf: Uint8Array, coin: string, addrType: string } => {
+export const decodeAddress = (address: string): { buf: ArrayBuffer, coin: string, addrType: string } => {
 	try {
 		return decodeAddressBase58Check(address);
 	} catch(e) {
@@ -163,13 +152,13 @@ export class CryptoIncognito {
 	//logger: (str: string) => void = console.log;
 	logger: (str: string) => void = (str: string) => {};
 	
-	pubkey: Uint8Array;
+	pubkey: ArrayBuffer;
 	
 	constructor(
 		public epir: EpirBase, public decCtx: DecryptionContextBase,
 		public apiID: string, public apiKey: string,
 		public nonceGenerator: NonceGenerator<any>,
-		public privkey: Uint8Array = epir.createPrivkey(),
+		public privkey: ArrayBuffer = epir.createPrivkey(),
 		public apiEndPoint: string = 'https://api.crypto-incognito.com/') {
 		this.pubkey = this.epir.createPubkey(this.privkey);
 	}
@@ -178,7 +167,7 @@ export class CryptoIncognito {
 		const hmac = await createHMAC(createSHA3(256), this.apiKey);
 		hmac.init();
 		hmac.update(nonce + ':' + body);
-		return uint8ArrayToBase64(hmac.digest('binary'));
+		return arrayBufferToBase64(hmac.digest('binary'));
 	}
 	
 	async callAPI<T>(path: string, method: string, headers: { [key: string]: string } = {}, body?: string): Promise<T> {
@@ -227,15 +216,15 @@ export class CryptoIncognito {
 		return await this.callAPIPublic<UTXOSetInfo>(path);
 	}
 	
-	async createSelector(indexCounts: number[], idx: number): Promise<Uint8Array> {
+	async createSelector(indexCounts: number[], idx: number): Promise<ArrayBuffer> {
 		return await this.epir.createSelector(this.pubkey, indexCounts, idx);
 	}
 	
-	async createSelectorFast(indexCounts: number[], idx: number): Promise<Uint8Array> {
+	async createSelectorFast(indexCounts: number[], idx: number): Promise<ArrayBuffer> {
 		return await this.epir.createSelectorFast(this.privkey, indexCounts, idx);
 	}
 	
-	async createSelector_(indexCounts: number[], idx: number, isFast: boolean = true): Promise<Uint8Array> {
+	async createSelector_(indexCounts: number[], idx: number, isFast: boolean = true): Promise<ArrayBuffer> {
 		if(isFast) {
 			return await this.createSelectorFast(indexCounts, idx);
 		} else {
@@ -244,18 +233,18 @@ export class CryptoIncognito {
 	}
 	
 	// PUT /priv/utxo/:coin/:addrType/:searchType
-	async getUTXO(coin: string, addrType: string, searchType: string, selector: Uint8Array): Promise<Uint8Array> {
+	async getUTXO(coin: string, addrType: string, searchType: string, selector: ArrayBuffer): Promise<ArrayBuffer> {
 		const path = `utxo/${coin}/${addrType}/${searchType}`;
-		const body = { selector: uint8ArrayToBase64(selector) };
+		const body = { selector: arrayBufferToBase64(selector) };
 		const replyStr = (await this.callAPIPrivate<{ reply: string }>(path, 'PUT', body)).reply;
-		return base64ToUint8Array(replyStr);
+		return base64ToArrayBuffer(replyStr);
 	}
 	
-	async decryptReply(reply: Uint8Array, dimension: number, packing: number): Promise<Uint8Array> {
+	async decryptReply(reply: ArrayBuffer, dimension: number, packing: number): Promise<ArrayBuffer> {
 		return await this.decCtx.decryptReply(this.privkey, dimension, packing, reply);
 	}
 	
-	async findUTXOLocation(coin: string, addrType: string, addrBuf: Uint8Array, isFast?: boolean): Promise<number> {
+	async findUTXOLocation(coin: string, addrType: string, addrBuf: ArrayBuffer, isFast?: boolean): Promise<number> {
 		// Fetch UTXOSetInfo.
 		const utxoSetInfoAddress = await this.getUTXOSetInfo(coin, addrType, 'address');
 		let imin = 0;
@@ -266,7 +255,7 @@ export class CryptoIncognito {
 		let queriesSent = 0;
 		let left = 0;
 		let right = 0xffffffff;
-		const my = new DataView(addrBuf.buffer).getUint32(0, false);
+		const my = new DataView(addrBuf).getUint32(0, false);
 		for(; imin <= imax;) {
 			//const imid = imin + ((imax - imin) >> 1);
 			left = Math.min(left, my);
@@ -277,18 +266,16 @@ export class CryptoIncognito {
 			const beginQuery = time();
 			const replyEncrypted = await this.getUTXO(coin, addrType, 'address', selector);
 			const beginDecrypt = time();
-			const reply =
-				(await this.decryptReply(replyEncrypted, utxoSetInfoAddress.dimension, utxoSetInfoAddress.packing))
-					.slice(0, addrBuf.length);
+			const reply = await this.decryptReply(replyEncrypted, utxoSetInfoAddress.dimension, utxoSetInfoAddress.packing)
 			queriesSent++;
 			this.logger(`Quering at position = ${imid.toLocaleString().padStart(10, ' ')} | Execution time: selector = ${(beginQuery-beginSelector).toLocaleString().padStart(5, ' ')}ms, query = ${(beginDecrypt-beginQuery).toLocaleString().padStart(5, ' ')}ms, decrypt = ${(time()-beginDecrypt).toLocaleString().padStart(5, ' ')}ms.`);
-			const cmp = uint8ArrayCompare(addrBuf, reply);
+			const cmp = arrayBufferCompare(addrBuf, 0, reply, 0, addrBuf.byteLength);
 			if(cmp < 0) {
 				imax = imid - 1;
-				right = new DataView(reply.buffer).getUint32(0, false);
+				right = new DataView(reply).getUint32(0, false);
 			} else if(cmp > 0) {
 				imin = imid + 1;
-				left = new DataView(reply.buffer).getUint32(0, false);
+				left = new DataView(reply).getUint32(0, false);
 			} else {
 				this.logger(`The position found at ${imid.toLocaleString()} in ${(time() - begin).toLocaleString()}ms by sending ${queriesSent} queries.`);
 				return imid;
@@ -302,7 +289,7 @@ export class CryptoIncognito {
 		const selector = await this.createSelector_(utxoSetInfoRange.indexCounts, loc, isFast);
 		const encrypted = await this.getUTXO(coin, addrType, 'range', selector);
 		const decrypted = await this.decryptReply(encrypted, utxoSetInfoRange.dimension, utxoSetInfoRange.packing);
-		const dataView = new DataView(decrypted.buffer);
+		const dataView = new DataView(decrypted);
 		const begin = dataView.getUint32(0, true);
 		const count = dataView.getUint32(4, true);
 		return { begin, count }
@@ -312,9 +299,9 @@ export class CryptoIncognito {
 		const selector = await this.createSelector_(utxoSetInfoFind.indexCounts, idx, isFast);
 		const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
 		const utxoBuf = await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing);
-		const dataView = new DataView(utxoBuf.buffer);
+		const dataView = new DataView(utxoBuf);
 		return {
-			txid: [...utxoBuf.slice(0, 32)].map((n) => n.toString(16).padStart(2, '0')).join(''),
+			txid: [...new Uint8Array(utxoBuf.slice(0, 32))].map((n) => n.toString(16).padStart(2, '0')).join(''),
 			vout: dataView.getUint32(32, true),
 			value: parseInt(dataView.getBigUint64(36, true).toString()),
 		};
