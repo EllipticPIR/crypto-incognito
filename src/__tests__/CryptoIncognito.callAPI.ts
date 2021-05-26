@@ -13,5 +13,11 @@ describe('callAPI', () => {
 	test('failed API call', async () => {
 		await expect(async () => { await ci.callAPI<any>('path', 'GET'); }).rejects.toThrow(/^Requested endpoint not found\.$/);
 	});
+	test('API call with globally defined "fetch"', async () => {
+		Object.defineProperty(global.self, 'fetch', {
+			value: require('node-fetch')
+		});
+		const coins = await ci.getCoins();
+	});
 });
 

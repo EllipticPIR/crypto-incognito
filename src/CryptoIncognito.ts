@@ -73,8 +73,7 @@ export class NonceGeneratorRedlock implements NonceGenerator<Redlock.Lock> {
 	}
 	async getNonce() {
 		const nonce = await this.redis.get(this.key);
-		if(!nonce) throw new Error('Failed to get the nonce.');
-		return parseInt(nonce);
+		return parseInt(nonce!);
 	}
 }
 
