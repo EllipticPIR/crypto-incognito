@@ -13,9 +13,7 @@
 		
 		<p>Generate pre-computed values of mG (= G, 2G, ..., (0xffffff)G).</p>
 		
-		<div class="text-center">
-			<b-button @click="generateMG">Generate mG</b-button>
-		</div>
+		<ClickableButton value="Generate mG" :click="generateMG" />
 		
 		<DownArrow />
 		
@@ -62,9 +60,7 @@
 			<b-form-input :value="addrBuf.toString('hex')" disabled></b-form-input>
 		</b-form-group>
 		
-		<div class="text-center">
-			<b-button @click="findUTXOLocation">Find UTXO Location</b-button>
-		</div>
+		<ClickableButton value="Find UTXO Location" :click="findUTXOLocation" />
 		
 		<DownArrow />
 		
@@ -78,9 +74,7 @@
 			<b-form-input v-model="utxoLocation"></b-form-input>
 		</b-form-group>
 		
-		<div class="text-center">
-			<b-button @click="getUTXORangeAt">Get UTXO Range</b-button>
-		</div>
+		<ClickableButton value="Get UTXO Range" :click="getUTXORangeAt" />
 		
 		<DownArrow />
 		
@@ -102,9 +96,7 @@
 			<b-form-input v-model="utxoRange.count"></b-form-input>
 		</b-form-group>
 		
-		<div class="text-center">
-			<b-button @click="getUTXOsInRange">Fetch UTXOs</b-button>
-		</div>
+		<ClickableButton value="Fetch UTXOs" :click="getUTXOsInRange" />
 		
 		<DownArrow />
 		
@@ -141,6 +133,7 @@ import Vue, { PropType } from 'vue'
 import Dexie from 'dexie';
 import { sha256 } from 'hash-wasm';
 
+import ClickableButton from 'epir/components/ClickableButton.vue';
 import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from '../node_modules/epir/src_ts/EpirBase';
 import {
 	createEpir, createDecryptionContext,
@@ -170,6 +163,9 @@ export type DataType = {
 };
 
 export default Vue.extend({
+	components: {
+		ClickableButton,
+	},
 	data(): DataType {
 		return {
 			epir: null,
