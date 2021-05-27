@@ -10,7 +10,8 @@
     "clean": "rm -rf dist",
     "epir_genm": "LD_LIBRARY_PATH=./node_modules/epir/build_c/epir/lib:./node_modules/epir/build_c/libsodium/lib epir_genm",
     "test": "dotenv -- node -e 'if(!process.env.REDIS_HOST)process.exit(1)' || export JEST_FLAGS='--maxWorkers 1'; jest ${JEST_FLAGS} --coverage --verbose",
-    "serve": "nuxt"
+    "serve": "nuxt",
+    "generate": "nuxt generate"
   },
   "files": [
     "src/*",
