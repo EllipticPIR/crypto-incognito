@@ -120,14 +120,15 @@ import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from 'epir/dist/EpirBas
 import { time, arrayBufferToHex } from 'epir/dist/util';
 import {
 	createEpir, createDecryptionContext,
-	loadDecryptionContextFromIndexedDB, saveDecryptionContextToIndexedDB
+	loadDecryptionContextFromIndexedDB, saveDecryptionContextToIndexedDB,
+	SelectorFactory
 } from '../node_modules/epir/src_ts/wasm';
 import { CryptoIncognito, NonceGeneratorMutex, UTXOEntry, decodeAddress } from '../src/CryptoIncognito';
 
 export type DataType = {
 	epir: EpirBase | null;
 	decCtx: DecryptionContextBase | null;
-	ci: CryptoIncognito | null,
+	ci: CryptoIncognito | null;
 	pointsComputed: number;
 	mmax: number;
 	apiID: string;
@@ -205,6 +206,8 @@ export default Vue.extend({
 			this.epir = await createEpir();
 			this.ci = new CryptoIncognito(this.epir, this.decCtx, this.apiID, this.apiKey, new NonceGeneratorMutex());
 			this.ci.logger = console.log;
+			this.ci.selectorFactory = new SelectorFactory(true, this.ci.privkey);
+			await this.ci.selectorFactory.fill();
 		},
 		async loadMGIfExists() {
 			const decCtx = await loadDecryptionContextFromIndexedDB();

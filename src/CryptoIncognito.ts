@@ -6,7 +6,7 @@ import { Mutex } from 'await-semaphore';
 import Redis from 'ioredis';
 import Redlock from 'redlock';
 
-import { EpirBase, DecryptionContextBase } from 'epir/dist/EpirBase';
+import { EpirBase, DecryptionContextBase, SelectorFactoryBase } from 'epir/dist/EpirBase';
 import { time, arrayBufferCompare } from 'epir/dist/util';
 
 export type Response<T> = {
@@ -153,6 +153,8 @@ export class CryptoIncognito {
 	
 	pubkey: ArrayBuffer;
 	
+	selectorFactory: SelectorFactoryBase | null = null;
+	
 	constructor(
 		public epir: EpirBase, public decCtx: DecryptionContextBase,
 		public apiID: string, public apiKey: string,
@@ -224,6 +226,9 @@ export class CryptoIncognito {
 	}
 	
 	async createSelector_(indexCounts: number[], idx: number, isFast: boolean = true): Promise<ArrayBuffer> {
+		if(this.selectorFactory) {
+			return this.selectorFactory.create(indexCounts, idx);
+		}
 		if(isFast) {
 			return await this.createSelectorFast(indexCounts, idx);
 		} else {
@@ -241,6 +246,12 @@ export class CryptoIncognito {
 	
 	async decryptReply(reply: ArrayBuffer, dimension: number, packing: number): Promise<ArrayBuffer> {
 		return await this.decCtx.decryptReply(this.privkey, dimension, packing, reply);
+	}
+	
+	async selectorFactoryFill() {
+		if(this.selectorFactory) {
+			await this.selectorFactory.fill();
+		}
 	}
 	
 	async findUTXOLocation(coin: string, addrType: string, addrBuf: ArrayBuffer, isFast?: boolean): Promise<number> {
@@ -280,6 +291,7 @@ export class CryptoIncognito {
 				return imid;
 			}
 		}
+		this.selectorFactoryFill();
 		return -1;
 	}
 	
@@ -291,6 +303,7 @@ export class CryptoIncognito {
 		const dataView = new DataView(decrypted);
 		const begin = dataView.getUint32(0, true);
 		const count = dataView.getUint32(4, true);
+		this.selectorFactoryFill();
 		return { begin, count }
 	}
 	
@@ -299,6 +312,7 @@ export class CryptoIncognito {
 		const utxoReply = await this.getUTXO(coin, addrType, 'find', selector);
 		const utxoBuf = await this.decryptReply(utxoReply, utxoSetInfoFind.dimension, utxoSetInfoFind.packing);
 		const dataView = new DataView(utxoBuf);
+		this.selectorFactoryFill();
 		return {
 			txid: [...new Uint8Array(utxoBuf.slice(0, 32))].map((n) => n.toString(16).padStart(2, '0')).join(''),
 			vout: dataView.getUint32(32, true),
