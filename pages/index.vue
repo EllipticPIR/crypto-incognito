@@ -41,7 +41,7 @@
 				
 				<InputWithLabel v-model="address" label="Address" />
 				
-				<InputWithLabel :value="coin" label="CoinName" readonly />
+				<InputWithLabel :value="coin" label="Coin Name" readonly />
 				
 				<InputWithLabel :value="addrType" label="Address Type" readonly />
 				
@@ -51,13 +51,13 @@
 				
 				<DownArrow />
 				
-				<InputWithLabel :value="utxoLocationFound < 0 ? '(not found)' : utxoLocationFound.toLocaleString()" label="UTXO location found" readonly />
+				<InputWithLabel :value="utxoLocationFound < 0 ? '(not found)' : utxoLocationFound.toLocaleString()" label="UTXO Location Found" readonly />
 				
 				<p>Computation time: {{ findUTXOLocationTime.toLocaleString() }} ms</p>
 				
 				<h2>Step 4. Get UTXO range</h2>
 				
-				<InputWithLabel v-model="utxoLocation" label="UTXO location" readonly />
+				<InputWithLabel v-model="utxoLocation" label="UTXO Location" />
 				
 				<ClickableButton value="Get UTXO Range" :click="getUTXORangeAt" />
 				
@@ -71,9 +71,9 @@
 				
 				<h2>Step 5. Fetch UTXOs</h2>
 				
-				<InputWithLabel v-model="utxoRange.begin" label="UTXO range begin" />
+				<InputWithLabel v-model="utxoRange.begin" label="UTXO Range Begin" />
 				
-				<InputWithLabel v-model="utxoRange.count" label="UTXO count" />
+				<InputWithLabel v-model="utxoRange.count" label="UTXO Count" />
 				
 				<ClickableButton value="Fetch UTXOs" :click="getUTXOsInRange" />
 				
@@ -92,11 +92,6 @@
 				</v-data-table>
 				
 				<p>Computation time: {{ getUTXOsInRangeTime.toLocaleString() }} ms</p>
-				
-				<hr />
-				
-				<h2>Debug Console</h2>
-				<textarea id="console" :value="console.join('\n')" rows="20" class="w-100" disabled />
 				
 				<hr />
 				
@@ -133,7 +128,6 @@ export type DataType = {
 	epir: EpirBase | null;
 	decCtx: DecryptionContextBase | null;
 	ci: CryptoIncognito | null,
-	console: string[];
 	pointsComputed: number;
 	mmax: number;
 	apiID: string;
@@ -163,7 +157,6 @@ export default Vue.extend({
 			epir: null,
 			decCtx: null,
 			ci: null,
-			console: [],
 			pointsComputed: 0,
 			mmax: DEFAULT_MMAX,
 			apiID: '',
@@ -205,22 +198,12 @@ export default Vue.extend({
 			this.decodeAddress();
 		},
 	},
-	updated() {
-		const elem = this.$el.querySelector('#console');
-		if(elem) {
-			elem.scrollTop = elem.scrollHeight;
-		}
-	},
 	methods: {
 		arrayBufferToHex: arrayBufferToHex,
-		log(str: string) {
-			this.console.push(str);
-		},
 		async createCI(decCtx: DecryptionContextBase) {
 			this.decCtx = decCtx;
 			this.epir = await createEpir();
 			this.ci = new CryptoIncognito(this.epir, this.decCtx, this.apiID, this.apiKey, new NonceGeneratorMutex());
-			this.ci.logger = this.log;
 		},
 		async loadMGIfExists() {
 			const decCtx = await loadDecryptionContextFromIndexedDB();
@@ -229,11 +212,9 @@ export default Vue.extend({
 			await this.createCI(decCtx);
 		},
 		async generateMG() {
-			this.log('Generating mG..');
 			const decCtx = await createDecryptionContext({ cb: (pointsComputed: number) => {
 				this.pointsComputed = pointsComputed;
 				const progress = 100 * pointsComputed / DEFAULT_MMAX;
-				this.log(`Generated ${pointsComputed.toLocaleString()} of ${DEFAULT_MMAX.toLocaleString()} points (${progress.toFixed(2)}%)..`);
 			}, interval: 10 * 1000 }, DEFAULT_MMAX);
 			saveDecryptionContextToIndexedDB(decCtx);
 			await this.createCI(decCtx);
@@ -262,7 +243,7 @@ export default Vue.extend({
 						await this.ci.findUTXOLocation(this.coin, this.addrType, this.addrBuf)).toString();
 				this.findUTXOLocationTime = time() - begin;
 			} catch(e) {
-				this.log(e.stack);
+				console.log(e.stack);
 				alert(e.toString());
 			}
 		},
@@ -278,7 +259,7 @@ export default Vue.extend({
 				this.utxoRange.count = this.utxoRangeFound.count.toString();
 				this.getUTXORangeAtTime = time() - begin;
 			} catch(e) {
-				this.log(e.stack);
+				console.log(e.stack);
 				alert(e.toString());
 			}
 		},
@@ -298,7 +279,7 @@ export default Vue.extend({
 				}
 				this.getUTXOsInRangeTime = time() - beginTime;
 			} catch(e) {
-				this.log(e.stack);
+				console.log(e.stack);
 				alert(e.toString());
 			}
 		},
