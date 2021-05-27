@@ -204,6 +204,7 @@ export default Vue.extend({
 			this.decCtx = decCtx;
 			this.epir = await createEpir();
 			this.ci = new CryptoIncognito(this.epir, this.decCtx, this.apiID, this.apiKey, new NonceGeneratorMutex());
+			this.ci.logger = console.log;
 		},
 		async loadMGIfExists() {
 			const decCtx = await loadDecryptionContextFromIndexedDB();
