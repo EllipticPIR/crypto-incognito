@@ -4,6 +4,8 @@ import Redlock from 'redlock';
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { SelectorFactoryBase } from 'epir/dist/EpirBase';
+import { SelectorFactory } from 'epir/dist/addon';
 import { createCI } from '../index';
 import { CryptoIncognito, NonceGeneratorMutex, NonceGeneratorRedlock } from '../CryptoIncognito';
 
@@ -35,7 +37,7 @@ export const getNonceGenerator = async () => {
 	}
 };
 
-export const runTests = () => {
+export const runTests = (createSelectorFactory: (privkey: ArrayBuffer) => SelectorFactoryBase) => {
 	
 	let ci: CryptoIncognito;
 	
@@ -66,6 +68,12 @@ export const runTests = () => {
 			const utxos = await ci.findUTXOs('tb1qn0tf0undxxxxxxxxxxxxxxxxxxxxxxxxry28wm', true);
 			expect(utxos).toEqual([]);
 		}, 120 * 1000);
+		test('with SelectorFactory', async () => {
+			ci.selectorFactory = createSelectorFactory(ci.privkey);
+			await ci.selectorFactory.fill();
+			const utxos = await ci.findUTXOs(address, true);
+			expect(utxos).toEqual(expectedUtxos);
+		}, 120 * 1000);
 	});
 	
 	afterAll(async () => {
@@ -77,6 +85,6 @@ export const runTests = () => {
 };
 
 if(require.main === null) {
-	runTests();
+	runTests((privkey: ArrayBuffer) => new SelectorFactory(true, privkey));
 }
 
