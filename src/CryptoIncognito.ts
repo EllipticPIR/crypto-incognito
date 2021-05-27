@@ -328,6 +328,7 @@ export class CryptoIncognito {
 		if(loc < 0) return [];
 		// Query the range.
 		const { begin, count } = await this.getUTXORangeAt(coin, addrType, loc, isFast);
+		this.logger(`The UTXO range: from: ${begin} to: ${begin + count - 1}, count: ${count}.`);
 		// Query for UTXOs.
 		const utxos = await this.getUTXOsInRange(coin, addrType, begin, count, isFast);
 		this.logger(`Computation done in ${(time() - beginFunc).toLocaleString()}ms.`);

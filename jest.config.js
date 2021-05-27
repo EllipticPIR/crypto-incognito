@@ -12,6 +12,7 @@ module.exports = {
 		'^.+\\.(ts|tsx)$': 'ts-jest',
 	},
 	transformIgnorePatterns: [],
+	setupFilesAfterEnv: ['./node_modules/epir/src_ts/__tests__/crypto.setup.ts'],
 	collectCoverageFrom: [
 		'src/**/*.ts',
 		'!src/bench_balance.ts',
