@@ -116,7 +116,7 @@ import { sha256 } from 'hash-wasm';
 
 import ClickableButton from 'epir/components/ClickableButton.vue';
 import InputWithLabel from 'epir/components/InputWithLabel.vue';
-import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from 'epir/dist/EpirBase';
+import { EpirBase, DecryptionContextBase, DEFAULT_MMAX } from 'epir/dist/types';
 import { time, arrayBufferToHex } from 'epir/dist/util';
 import {
 	createEpir, createDecryptionContext,
