@@ -4,7 +4,7 @@ import Redlock from 'redlock';
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { SelectorFactoryBase } from 'epir/dist/EpirBase';
+import { SelectorFactoryBase } from 'epir/dist/types';
 import { SelectorFactory } from 'epir/dist/addon';
 import { createCI } from '../index';
 import { CryptoIncognito, NonceGeneratorMutex, NonceGeneratorRedlock } from '../CryptoIncognito';

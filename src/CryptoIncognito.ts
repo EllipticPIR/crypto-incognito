@@ -6,7 +6,7 @@ import { Mutex } from 'await-semaphore';
 import Redis from 'ioredis';
 import Redlock from 'redlock';
 
-import { EpirBase, DecryptionContextBase, SelectorFactoryBase } from 'epir/dist/EpirBase';
+import { EpirBase, DecryptionContextBase, SelectorFactoryBase } from 'epir/dist/types';
 import { time, arrayBufferCompare } from 'epir/dist/util';
 
 export type Response<T> = {
